@@ -1,0 +1,17 @@
+﻿baseline:
+  name: "SVTRv2"
+  task: "recognition"
+  status: "project_runnable"
+  purpose: "Strong SVTR-family recognition comparison baseline with multi-size fusion and semantic guidance."
+
+data:
+  image_height: 256
+  image_width: 128
+  sequence_axis: "height"
+
+expected_metrics:
+  output_json: "outputs/metrics/recognition/svtrv2_baseline/eval_test.json"
+  required_keys:
+    - "word_accuracy"
+    - "character_accuracy"
+    - "cer"

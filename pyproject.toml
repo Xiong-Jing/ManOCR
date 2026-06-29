@@ -1,0 +1,12 @@
+﻿[project]
+name = "manchu-ocr"
+version = "0.1.0"
+description = "A PyTorch-based OCR system for Manchu text detection and recognition."
+requires-python = ">=3.9"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"

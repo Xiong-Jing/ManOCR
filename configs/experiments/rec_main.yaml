@@ -1,0 +1,12 @@
+experiment:
+  name: "rec_main"
+  task: "recognition"
+
+main_model:
+  name: "SVTR + DAB + Lortho"
+  config: "configs/recognition/svtr_official_dab_lortho.yaml"
+  checkpoint: "outputs/checkpoints/recognition/svtr_official_dab_lortho/best.pth"
+
+eval:
+  splits: ["val", "test"]
+  save_predictions: true
