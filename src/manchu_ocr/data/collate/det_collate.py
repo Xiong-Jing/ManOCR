@@ -29,6 +29,7 @@ class DetCollate:
 
         map_keys = [
             "prob_map",
+            "as_prob_map",
             "thresh_map",
             "thresh_mask",
             "training_mask",

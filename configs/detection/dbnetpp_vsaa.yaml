@@ -49,7 +49,7 @@ data:
     use_asymmetric_shrink: false
     shrink_ratio_x: 0.65
     shrink_ratio_y: 0.9
-    as_auxiliary: true
+    as_auxiliary: false
 model:
   name: DBNetPP
   backbone:
@@ -71,6 +71,7 @@ model:
     name: DBHead
     in_channels: 256
     k: 50
+    as_auxiliary_head: false
 loss:
   alpha: 1.0
   beta: 10.0
@@ -114,7 +115,7 @@ eval:
   binary_thresh: 0.3
   box_thresh: 0.5
   unclip_ratio: 1.5
-  iou_thresh: 0.75
+  iou_thresh: 0.70
   min_size: 3
 train:
   epochs: 100

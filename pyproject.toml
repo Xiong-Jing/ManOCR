@@ -9,8 +9,4 @@ where = ["src"]
 
 [build-system]
 requires = ["setuptools>=61.0"]
-<<<<<<< HEAD
 build-backend = "setuptools.build_meta"
-=======
-build-backend = "setuptools.build_meta"
->>>>>>> bda747fe6ae95d82f4b13f39a863c8bcbc7ee8c3

@@ -37,7 +37,7 @@ def find_matching_image(json_path: Path, image_dir: Path) -> Path | None:
         if candidate.exists():
             return candidate
 
-    # 兼容大小写后缀
+    # Match suffixes case-insensitively.
     for path in image_dir.iterdir():
         if path.is_file() and path.stem == stem and path.suffix.lower() in IMAGE_EXTS:
             return path
@@ -183,7 +183,7 @@ def clean_polygons(
 
         x1, y1, x2, y2 = polygon_bbox(points)
 
-        # 删除左右侧栏异常框，例如黑色书签、侧边装饰、页边部件
+        # Drop side-band boxes such as bookmarks, decorations, or page margins.
         if remove_side_band:
             cx = (x1 + x2) / 2.0
             left_boundary = image_width * side_band_ratio
@@ -205,7 +205,7 @@ def clean_polygons(
 
         candidates.append(new_poly)
 
-    # 去重：面积大的优先保留；如果 IoU 极高，认为重复
+    # Deduplicate by keeping larger boxes first; very high IoU means duplicate.
     candidates = sorted(candidates, key=lambda x: x["area"], reverse=True)
 
     kept = []
@@ -226,7 +226,7 @@ def clean_polygons(
         if not duplicated:
             kept.append(poly)
 
-    # 恢复按页面位置排序：先 x，再 y，适合左到右列、列内自上而下的初步顺序
+    # Restore page-position order: x first, then y.
     kept = sorted(kept, key=lambda x: (x["bbox"][0], x["bbox"][1]))
 
     stats["kept_polygons"] = len(kept)

@@ -1,15 +1,6 @@
 ﻿from manchu_ocr.models.registry import RECOGNIZERS
 
 # trigger registration
-from manchu_ocr.models.recognition.advanced_baselines import (  # noqa: F401
-    DCMRecognizer,
-    SVTRv2Recognizer,
-)
-from manchu_ocr.models.recognition.baselines import (  # noqa: F401
-    ABINetCTCRecognizer,
-    CRNNRecognizer,
-    PARSeqCTCRecognizer,
-)
 from manchu_ocr.models.recognition.svtr_official import SVTROfficialRecognizer  # noqa: F401
 
 
@@ -19,9 +10,7 @@ def build_recognition_model(cfg: dict, num_classes: int):
 
     Registry-style configs:
         model:
-          name: "SVTROfficialRecognizer" / "CRNNRecognizer" /
-                "PARSeqCTCRecognizer" / "ABINetCTCRecognizer" /
-                "SVTRv2Recognizer" / "DCMRecognizer"
+          name: "SVTROfficialRecognizer"
           ...
 
     Legacy configs are still supported through SVTRRecognizer.
@@ -31,11 +20,6 @@ def build_recognition_model(cfg: dict, num_classes: int):
 
     registry_model_names = {
         "SVTROfficialRecognizer",
-        "CRNNRecognizer",
-        "PARSeqCTCRecognizer",
-        "ABINetCTCRecognizer",
-        "SVTRv2Recognizer",
-        "DCMRecognizer",
     }
 
     if model_name in registry_model_names:

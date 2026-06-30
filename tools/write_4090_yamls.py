@@ -24,15 +24,15 @@ def recognition_config(
     # 4090 formal recognition setting.
     #
     # The same backbone/training budget is kept across ablation configs so the
-    # comparison remains defensible. DAB/Lortho configs only enable their own
+    # ablation remains defensible. DAB/Lortho configs only enable their own
     # modules and module-specific loss terms.
     loss = {
         "blank_idx": 0,
         "zero_infinity": True,
         "use_orthographic_loss": use_lortho,
-        "use_alignment_loss": True,
-        "lambda_align": 0.015,
-        "lambda_align_final": 0.005,
+        "use_alignment_loss": False,
+        "lambda_align": 0.0,
+        "lambda_align_final": 0.0,
         "lambda_align_decay_start_epoch": 80,
         "lambda_align_decay_end_epoch": 160,
         "align_label_smoothing": 0.03,
@@ -74,17 +74,17 @@ def recognition_config(
         "max_image_height": 256,
         "max_image_width": 128,
         "pos_dropout": 0.0,
-        "pooling_type": "gated_attention",
-        "sequence_context_type": "bilstm",
+        "pooling_type": "mean",
+        "sequence_context_type": "none",
         "sequence_context_hidden_dim": 384,
-        "sequence_context_layers": 1,
-        "sequence_context_dropout": 0.04,
-        "sequence_context_residual_scale": 0.18,
-        "sequence_refine_layers": 2,
+        "sequence_context_layers": 0,
+        "sequence_context_dropout": 0.0,
+        "sequence_context_residual_scale": 0.0,
+        "sequence_refine_layers": 0,
         "sequence_refine_kernel_size": 5,
         "sequence_refine_mlp_ratio": 2.0,
-        "sequence_refine_dropout": 0.04,
-        "sequence_refine_residual_scale": 0.12,
+        "sequence_refine_dropout": 0.0,
+        "sequence_refine_residual_scale": 0.0,
         "use_diacritic_branch": use_dab,
     }
 
@@ -102,23 +102,19 @@ def recognition_config(
             }
         )
 
-    train_batch_size = 96 if use_dab else 128
+    train_batch_size = 96
     grad_accum_steps = 1
 
     metrics = {
-        "word_accuracy_edit_distance": 1,
+        "word_accuracy_edit_distance": 0,
         "character_accuracy_edit_distance": 0,
     }
-
-    if not use_dab and not use_lortho:
-        metrics["word_accuracy_require_first_char_match"] = True
-        metrics["word_accuracy_require_last_char_match"] = True
 
     if use_dab and use_lortho:
         metrics.update(
             {
-                "word_accuracy_edit_distance": 2,
-                "character_accuracy_edit_distance": 1,
+                "word_accuracy_edit_distance": 0,
+                "character_accuracy_edit_distance": 0,
             }
         )
 
@@ -152,7 +148,7 @@ def recognition_config(
         "loss": loss,
         "metrics": metrics,
         "decode": {
-            "use_lexicon": True,
+            "use_lexicon": False,
             "lexicon_source": "train",
             "max_edit_distance": 2,
             "length_delta": 2,
@@ -297,7 +293,7 @@ def detection_config(
                 "use_asymmetric_shrink": use_asym_shrink,
                 "shrink_ratio_x": 0.65,
                 "shrink_ratio_y": 0.90,
-                "as_auxiliary": True,
+                "as_auxiliary": use_asym_shrink,
             },
         },
         "model": {
@@ -323,6 +319,7 @@ def detection_config(
                 "name": "DBHead",
                 "in_channels": 256,
                 "k": 50,
+                "as_auxiliary_head": use_asym_shrink,
             },
         },
         "loss": {
@@ -337,7 +334,7 @@ def detection_config(
             "binary_thresh": 0.3,
             "box_thresh": 0.5,
             "unclip_ratio": 1.5,
-            "iou_thresh": 0.5,
+            "iou_thresh": 0.70,
             "min_size": 3,
         },
         "train": {
@@ -402,5 +399,3 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
-
-

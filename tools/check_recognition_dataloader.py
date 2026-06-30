@@ -119,7 +119,7 @@ def main() -> None:
         encoded = targets[offset: offset + length]
         offset += length
 
-        # 这里手动模拟一个没有 blank 的序列，用于检查 encode/decode 一致性
+        # Manually simulate a blank-free sequence to check encode/decode consistency.
         decoded = "".join([converter.idx_to_char[int(idx)] for idx in encoded])
         decoded_check.append(decoded)
 

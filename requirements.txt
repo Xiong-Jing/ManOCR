@@ -16,8 +16,4 @@ tensorboard
 albumentations
 Pillow
 editdistance
-<<<<<<< HEAD
 pytest
-=======
-pytest
->>>>>>> bda747fe6ae95d82f4b13f39a863c8bcbc7ee8c3

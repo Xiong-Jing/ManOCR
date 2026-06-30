@@ -40,7 +40,7 @@ def normalize_label(label: str) -> str:
     label = re.sub(r"\s+", "", label)
     label = label.lower()
 
-    # 统一撇号形式
+    # Normalize apostrophe variants.
     label = label.replace("‘", "’").replace("`", "’").replace("ʼ", "’")
 
     return label
@@ -76,10 +76,6 @@ def infer_excel_columns(df: pd.DataFrame) -> Tuple[str, str]:
             "filename",
             "file",
             "name",
-            "图片",
-            "图像",
-            "文件名",
-            "路径",
         ],
     )
 
@@ -92,17 +88,13 @@ def infer_excel_columns(df: pd.DataFrame) -> Tuple[str, str]:
             "roman",
             "romanization",
             "romaji",
-            "罗马音",
-            "转写",
-            "标签",
-            "文本",
         ],
     )
 
     if image_col is None or label_col is None:
         if len(columns) < 2:
             raise ValueError(
-                f"Excel 至少需要两列：图片名/路径列 + 标签列。当前列为：{columns}"
+                f"Excel needs at least two columns: image path/name and label. Current columns: {columns}"
             )
         image_col = columns[0]
         label_col = columns[1]
@@ -150,11 +142,11 @@ def make_image_id_candidates(raw_value: str) -> List[str]:
     if value == "" or value.lower() == "nan":
         return []
 
-    # 处理 pandas 把编号读成 76080.0 的情况
+    # Handle numeric IDs read by pandas as values such as 76080.0.
     if re.fullmatch(r"\d+\.0", value):
         value = value[:-2]
 
-    # 去掉路径，只保留文件名部分
+    # Strip directories and keep only the filename.
     value = Path(value).name.strip()
 
     candidates = []
@@ -171,15 +163,15 @@ def make_image_id_candidates(raw_value: str) -> List[str]:
     if stem:
         add(stem)
 
-    # 如果是纯数字，补前导 0
+    # If the stem is numeric, add zero-padded variants.
     if stem.isdigit():
-        add(str(int(stem)))  # 无前导 0 版本
+        add(str(int(stem)))  # non-padded variant
 
         for width in IMAGE_ID_PAD_WIDTHS:
             add(stem.zfill(width))
             add(str(int(stem)).zfill(width))
 
-    # 给所有 stem 候选补常见图片后缀
+    # Add common image suffixes to all stem candidates.
     base_candidates = candidates[:]
     for item in base_candidates:
         item_stem = Path(item).stem
@@ -189,7 +181,7 @@ def make_image_id_candidates(raw_value: str) -> List[str]:
             for ext in IMAGE_EXTS:
                 add(item_stem + ext)
 
-    # 如果原始值已经有后缀，也保留
+    # Keep the original value when it already has a suffix.
     if suffix:
         add(value)
 
@@ -202,20 +194,20 @@ def resolve_image_path(raw_value: str, image_root: Path, image_index: Dict[str, 
     for candidate in candidates:
         candidate_path = Path(candidate)
 
-        # 1. 绝对路径
+        # 1. Absolute path.
         if candidate_path.is_absolute() and candidate_path.exists():
             return candidate_path
 
-        # 2. 相对 raw_images 的直接路径
+        # 2. Direct path relative to raw_images.
         direct = image_root / candidate
         if direct.exists():
             return direct
 
-        # 3. 从索引里找
+        # 3. Lookup in the filename index.
         if candidate in image_index:
             return image_index[candidate]
 
-        # 4. 用 stem 再找一次
+        # 4. Lookup again by stem.
         stem = Path(candidate).stem
         if stem in image_index:
             return image_index[stem]

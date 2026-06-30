@@ -331,8 +331,8 @@ def main() -> None:
         num_workers=num_workers,
         shuffle=False,
         label_generator_cfg=label_generator_cfg,
-        augment=use_eval_degradation,
-        augmentation_cfg=eval_degradation_cfg if use_eval_degradation else None,
+        augment=False,
+        augmentation_cfg=None,
     )
 
     logger.info(f"Train samples: {len(train_loader.dataset)}")
@@ -343,8 +343,9 @@ def main() -> None:
         f"Train augmentation enabled: {use_train_augmentation}, "
         f"cfg={augmentation_cfg}"
     )
+    logger.info("Train-time validation degradation enabled: False")
     logger.info(
-        f"Validation degradation enabled: {use_eval_degradation}, "
+        f"Standalone degraded eval config available: {use_eval_degradation}, "
         f"cfg={eval_degradation_cfg if use_eval_degradation else {}}"
     )
 

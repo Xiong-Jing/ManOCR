@@ -44,7 +44,7 @@ class DiacriticAwareBranch(nn.Module):
 
         if sequence_axis == "height":
             if sequence_downsample <= 2:
-                # Match official SVTR patch_size=[2, 16]: preserve more
+                # Match the project SVTR patch_size=[2, 16]: preserve more
                 # vertical detail while reducing width aggressively.
                 strides = [(2, 2), (1, 2), (1, 2), (1, 2)]
             else:

@@ -2,7 +2,7 @@
 
 ## Detection
 
-The detector is an official-style DBNet++ baseline:
+The detector is a DBNet++ baseline:
 
 - ResNet backbone
 - DBFPN neck
@@ -16,7 +16,7 @@ Project-specific additions:
 
 ## Recognition
 
-The recognizer is an official-style SVTR compact model:
+The recognizer is an SVTR compact model:
 
 - Patch embedding
 - Local/global token mixers

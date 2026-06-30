@@ -318,7 +318,7 @@ def main() -> None:
         if args.checkpoint_mode == "best-last" or len(unique_epochs) <= 2:
             print(
                 "[WARN] Only best/last or very few checkpoints were evaluated. "
-                "This is a unified post-training comparison, not a full per-epoch curve. "
+                "This is a unified post-training revalidation, not a full per-epoch curve. "
                 "A full historical curve requires saved epoch checkpoints."
             )
 

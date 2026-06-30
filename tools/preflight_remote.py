@@ -16,11 +16,6 @@ DETECTION_CONFIGS = [
     "configs/detection/dbnetpp_vsaa.yaml",
     "configs/detection/dbnetpp_asym_shrink.yaml",
     "configs/detection/dbnetpp_vsaa_asym_shrink.yaml",
-    "configs/detection/east_baseline.yaml",
-    "configs/detection/craft_baseline.yaml",
-    "configs/detection/dbnet_baseline.yaml",
-    "configs/detection/ppocrv5_det_baseline.yaml",
-    "configs/detection/hisam_baseline.yaml",
 ]
 
 RECOGNITION_CONFIGS = [
@@ -28,18 +23,11 @@ RECOGNITION_CONFIGS = [
     "configs/recognition/svtr_official_dab.yaml",
     "configs/recognition/svtr_official_lortho.yaml",
     "configs/recognition/svtr_official_dab_lortho.yaml",
-    "configs/recognition/crnn_baseline.yaml",
-    "configs/recognition/parseq_baseline.yaml",
-    "configs/recognition/abinet_baseline.yaml",
-    "configs/recognition/svtrv2_baseline.yaml",
-    "configs/recognition/dcm_baseline.yaml",
 ]
 
 EXPERIMENT_CONFIGS = [
     "configs/experiments/det_ablation.yaml",
     "configs/experiments/rec_ablation.yaml",
-    "configs/experiments/det_comparison.yaml",
-    "configs/experiments/rec_comparison.yaml",
     "configs/experiments/det_main.yaml",
     "configs/experiments/rec_main.yaml",
     "configs/experiments/full_pipeline.yaml",
@@ -48,10 +36,7 @@ EXPERIMENT_CONFIGS = [
 RUN_SCRIPTS = [
     "scripts/run_det_ablation.sh",
     "scripts/run_det_degraded_ablation.sh",
-    "scripts/run_det_comparison.sh",
-    "scripts/run_det_degraded_comparison.sh",
     "scripts/run_rec_ablation.sh",
-    "scripts/run_rec_comparison.sh",
     "scripts/run_full_pipeline.sh",
 ]
 

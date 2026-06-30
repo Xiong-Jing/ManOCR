@@ -62,10 +62,23 @@ class DBLoss(nn.Module):
 
         as_loss = pred_prob.sum() * 0.0
 
-        if self.gamma_as > 0 and "as_prob_map" in batch:
+        if self.gamma_as > 0:
+            if "as_prob_map" not in preds:
+                raise KeyError(
+                    "DBLoss received gamma_as > 0, but model outputs do not include "
+                    "'as_prob_map'. Enable model.head.as_auxiliary_head for AS runs."
+                )
+            if "as_prob_map" not in batch:
+                raise KeyError(
+                    "DBLoss received gamma_as > 0, but batch does not include "
+                    "'as_prob_map'. Enable data.label_generator.use_asymmetric_shrink "
+                    "and make sure DetCollate keeps the AS target."
+                )
+
+            pred_as_prob = preds["as_prob_map"].float()
             gt_as_prob = batch["as_prob_map"].to(pred_prob.device).float()
             as_loss = self._positive_bce_loss(
-                pred=pred_prob,
+                pred=pred_as_prob,
                 gt=gt_as_prob,
                 mask=gt_training_mask,
             )

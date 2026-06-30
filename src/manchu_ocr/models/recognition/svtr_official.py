@@ -33,7 +33,7 @@ class ConvBNAct(nn.Module):
 
 class SVTRPatchEmbed(nn.Module):
     """
-    Official-style SVTR patch embedding.
+    SVTR patch embedding.
 
     Input:
         [B, C, H, W]
@@ -526,7 +526,7 @@ class SVTRBlock(nn.Module):
 
 class SVTR2DEncoder(nn.Module):
     """
-    Multi-stage official-style SVTR encoder.
+    Multi-stage SVTR encoder.
 
     Current compact version:
         - keeps spatial resolution stable after patch embedding
@@ -576,7 +576,7 @@ class SVTR2DEncoder(nn.Module):
 @RECOGNIZERS.register("SVTROfficialRecognizer")
 class SVTROfficialRecognizer(nn.Module):
     """
-    Official-style SVTR recognizer for vertical Manchu word recognition.
+    SVTR recognizer for vertical Manchu word recognition.
 
     Input:
         [B, 3, H, W]

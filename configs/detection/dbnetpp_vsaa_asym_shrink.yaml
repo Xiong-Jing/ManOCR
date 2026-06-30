@@ -71,6 +71,7 @@ model:
     name: DBHead
     in_channels: 256
     k: 50
+    as_auxiliary_head: true
 loss:
   alpha: 1.0
   beta: 10.0
@@ -128,8 +129,6 @@ train:
   grad_accum_steps: 1
   warmup_epochs: 5
   scheduler: cosine
-
-
 
 
 

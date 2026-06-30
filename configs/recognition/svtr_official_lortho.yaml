@@ -9,7 +9,7 @@ data:
   image_height: 256
   image_width: 128
   sequence_axis: height
-  batch_size: 128
+  batch_size: 96
   num_workers: 8
   augmentation:
     enabled: true
@@ -44,25 +44,25 @@ model:
   max_image_height: 256
   max_image_width: 128
   pos_dropout: 0.0
-  pooling_type: gated_attention
-  sequence_context_type: bilstm
+  pooling_type: mean
+  sequence_context_type: none
   sequence_context_hidden_dim: 384
-  sequence_context_layers: 1
-  sequence_context_dropout: 0.04
-  sequence_context_residual_scale: 0.18
-  sequence_refine_layers: 2
+  sequence_context_layers: 0
+  sequence_context_dropout: 0.0
+  sequence_context_residual_scale: 0.0
+  sequence_refine_layers: 0
   sequence_refine_kernel_size: 5
   sequence_refine_mlp_ratio: 2.0
-  sequence_refine_dropout: 0.04
-  sequence_refine_residual_scale: 0.12
+  sequence_refine_dropout: 0.0
+  sequence_refine_residual_scale: 0.0
   use_diacritic_branch: false
 loss:
   blank_idx: 0
   zero_infinity: true
   use_orthographic_loss: true
-  use_alignment_loss: true
-  lambda_align: 0.015
-  lambda_align_final: 0.005
+  use_alignment_loss: false
+  lambda_align: 0.0
+  lambda_align_final: 0.0
   lambda_align_decay_start_epoch: 80
   lambda_align_decay_end_epoch: 160
   align_label_smoothing: 0.03
@@ -80,7 +80,7 @@ loss:
   min_confidence: 0.02
   transition_matrix: ${OCR_MANCHU_REC_ROOT:-/root/code/Manchu_Recognition_Data}/processed/transition_matrix.npy
 decode:
-  use_lexicon: true
+  use_lexicon: false
   lexicon_source: train
   max_edit_distance: 2
   length_delta: 2
@@ -92,7 +92,7 @@ decode:
   ctc_rerank_max_candidates: 40
   ctc_rerank_prior_weight: 0.04
 metrics:
-  word_accuracy_edit_distance: 1
+  word_accuracy_edit_distance: 0
   character_accuracy_edit_distance: 0
 train:
   epochs: 200

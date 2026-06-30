@@ -12,7 +12,7 @@ from manchu_ocr.models.detection.necks.db_fpn import DBFPN  # noqa: F401
 @DETECTORS.register("DBNetPP")
 class DBNetPP(nn.Module):
     """
-    Official-style DBNet++ detector.
+    DBNet++ detector.
 
     Modules:
         backbone
