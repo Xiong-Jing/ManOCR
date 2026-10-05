@@ -1,0 +1,51 @@
+project_root: "${OCR_MANCHU_PROJECT_ROOT:-/root/code/OCR_Manchu}"
+
+detection_data:
+  root: "${OCR_MANCHU_DET_ROOT:-/root/code/Manchu_Detection_Data}"
+  raw_images: "${OCR_MANCHU_DET_ROOT:-/root/code/Manchu_Detection_Data}/raw/images"
+  raw_annotations: "${OCR_MANCHU_DET_ROOT:-/root/code/Manchu_Detection_Data}/raw/annotations_json"
+  clean_annotations: "${OCR_MANCHU_DET_ROOT:-/root/code/Manchu_Detection_Data}/processed/annotations_clean"
+  train_list: "${OCR_MANCHU_DET_ROOT:-/root/code/Manchu_Detection_Data}/processed/train.txt"
+  val_list: "${OCR_MANCHU_DET_ROOT:-/root/code/Manchu_Detection_Data}/processed/val.txt"
+  test_list: "${OCR_MANCHU_DET_ROOT:-/root/code/Manchu_Detection_Data}/processed/test.txt"
+  expected_raw_images: 500
+  expected_raw_annotations: 500
+  split:
+    train_ratio: 0.8
+    val_ratio: 0.1
+    test_ratio: 0.1
+    seed: 42
+  cleaning:
+    clear_clean_annotations: true
+    max_area_ratio: 0.3
+    duplicate_iou_threshold: 0.9
+    min_area: 4.0
+    remove_side_band: true
+    side_band_ratio: 0.1
+
+e2e_data:
+  root: "${OCR_MANCHU_DET_ROOT:-/root/code/Manchu_Detection_Data}/processed/e2e"
+  annotation_dir: "${OCR_MANCHU_DET_ROOT:-/root/code/Manchu_Detection_Data}/processed/e2e/annotations"
+  review_crop_dir: "${OCR_MANCHU_DET_ROOT:-/root/code/Manchu_Detection_Data}/processed/e2e/review_crops"
+  transcription_template: "${OCR_MANCHU_DET_ROOT:-/root/code/Manchu_Detection_Data}/processed/e2e/transcriptions.csv"
+  train_list: "${OCR_MANCHU_DET_ROOT:-/root/code/Manchu_Detection_Data}/processed/e2e/train.txt"
+  val_list: "${OCR_MANCHU_DET_ROOT:-/root/code/Manchu_Detection_Data}/processed/e2e/val.txt"
+  test_list: "${OCR_MANCHU_DET_ROOT:-/root/code/Manchu_Detection_Data}/processed/e2e/test.txt"
+
+recognition_data:
+  root: "${OCR_MANCHU_REC_ROOT:-/root/code/Manchu_Recognition_Data}"
+  raw_images: "${OCR_MANCHU_REC_ROOT:-/root/code/Manchu_Recognition_Data}/raw/word_images"
+  raw_excel: "${OCR_MANCHU_REC_ROOT:-/root/code/Manchu_Recognition_Data}/raw/labels.xlsx"
+  labels_csv: "${OCR_MANCHU_REC_ROOT:-/root/code/Manchu_Recognition_Data}/processed/labels.csv"
+  charset: "${OCR_MANCHU_REC_ROOT:-/root/code/Manchu_Recognition_Data}/processed/charset.txt"
+  transition_matrix: "${OCR_MANCHU_REC_ROOT:-/root/code/Manchu_Recognition_Data}/processed/transition_matrix.npy"
+  train_list: "${OCR_MANCHU_REC_ROOT:-/root/code/Manchu_Recognition_Data}/processed/train.txt"
+  val_list: "${OCR_MANCHU_REC_ROOT:-/root/code/Manchu_Recognition_Data}/processed/val.txt"
+  test_list: "${OCR_MANCHU_REC_ROOT:-/root/code/Manchu_Recognition_Data}/processed/test.txt"
+
+outputs:
+  root: "${OCR_MANCHU_OUTPUT_ROOT:-/root/code/OCR_Manchu/outputs}"
+  checkpoints: "${OCR_MANCHU_OUTPUT_ROOT:-/root/code/OCR_Manchu/outputs}/checkpoints"
+  logs: "${OCR_MANCHU_OUTPUT_ROOT:-/root/code/OCR_Manchu/outputs}/logs"
+  predictions: "${OCR_MANCHU_OUTPUT_ROOT:-/root/code/OCR_Manchu/outputs}/predictions"
+  metrics: "${OCR_MANCHU_OUTPUT_ROOT:-/root/code/OCR_Manchu/outputs}/metrics"
