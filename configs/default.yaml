@@ -1,0 +1,15 @@
+project:
+  name: OCR_Manchu
+  task: full_ocr
+  language: Manchu
+  paths_config: configs/paths/remote_server.yaml
+hardware:
+  target_gpu: RTX 4090 remote server
+  cuda_required: true
+defaults:
+  detection_config: configs/detection/dbnetpp_vsaa_asym_shrink.yaml
+  recognition_config: configs/recognition/svtr_official_dab_lortho.yaml
+  output_root: outputs
+reproducibility:
+  seed: 42
+  deterministic_notes: PyTorch CUDA kernels may still introduce small numeric differences.
