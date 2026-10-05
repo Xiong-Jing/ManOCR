@@ -1,0 +1,99 @@
+experiment:
+  name: "lmm_zero_shot_api"
+  task: "recognition"
+  protocol_version: "lmm_zero_shot_v1"
+  paths_config: "configs/paths/remote_server.yaml"
+
+protocol:
+  zero_shot: true
+  training_performed: false
+  input_unit: "recognition word crop"
+  default_splits:
+    - "validation"
+    - "test"
+  selection_seed: 42
+  # Freeze this prompt before opening held-out test outputs. It contains no
+  # examples and the runner never inserts a ground-truth label into it.
+  prompt: >-
+    Perform zero-shot OCR on this cropped image, which contains one vertically
+    written Manchu word. Transcribe exactly the visible word into lowercase
+    Romanized Manchu. Return only the transcription: do not translate, explain,
+    add Markdown, quotes, or commentary. Treat whitespace as layout formatting
+    and omit it.
+  generation:
+    temperature: 0.0
+    top_p: 1.0
+    max_tokens: 64
+    seed: 42
+  normalization:
+    # These are the same mechanical conventions used when preparing the
+    # project's Romanized Manchu labels. No answer extraction is performed.
+    remove_whitespace: true
+    lowercase: true
+    normalize_apostrophes: true
+  metrics:
+    word_accuracy: "strict exact match"
+    character_accuracy: "(N - S - D) / N"
+    cer: "(S + D + I) / N"
+  retry:
+    request_timeout_seconds: 180
+    max_attempts: 5
+    initial_backoff_seconds: 2
+    max_backoff_seconds: 30
+    jitter_seconds: 0.5
+    request_delay_seconds: 0
+    max_errors_before_stop: 5
+  progress_every: 25
+
+models:
+  qwen2_5_vl_7b:
+    display_name: "Qwen2.5-VL-7B-Instruct"
+    provider: "openai_compatible"
+    model_id: "qwen2.5-vl-7b-instruct"
+    # Set QWEN2_5_VL_BASE_URL to the workspace/region-specific URL shown in
+    # Model Studio. The legacy Beijing URL remains only as a compatibility fallback.
+    base_url: "${QWEN2_5_VL_BASE_URL:-https://dashscope.aliyuncs.com/compatible-mode/v1}"
+    api_key_env: "DASHSCOPE_API_KEY"
+    api_key_required: true
+    accepts_text_prompt: true
+    model_native_task: null
+    workers: 4
+
+  got_ocr2_0:
+    display_name: "GOT-OCR2.0"
+    provider: "gradio_space"
+    # For a formal full-split run, point this variable at a private/dedicated
+    # duplicate of the official Space instead of relying on its public queue.
+    source: "${GOT_OCR2_GRADIO_SOURCE:-stepfun-ai/GOT_official_online_demo}"
+    token_env: "HF_TOKEN"
+    api_name: "/run_GOT"
+    mode: "plain texts OCR"
+    accepts_text_prompt: false
+    model_native_task: "plain texts OCR"
+    workers: 1
+
+  paddleocr_vl:
+    display_name: "PaddleOCR-VL"
+    provider: "paddleocr_official"
+    # This intentionally evaluates the exact unversioned model selected in the
+    # paper plan, rather than silently changing it to PaddleOCR-VL-1.6.
+    model_id: "PaddleOCR-VL"
+    token_env: "PADDLEOCR_ACCESS_TOKEN"
+    base_url_env: "PADDLEOCR_BASE_URL"
+    request_timeout_seconds: 300
+    poll_timeout_seconds: 600
+    accepts_text_prompt: false
+    model_native_task: "ocr"
+    workers: 2
+    options:
+      use_doc_orientation_classify: false
+      use_doc_unwarping: false
+      use_layout_detection: false
+      prompt_label: "ocr"
+      format_block_content: false
+      temperature: 0.0
+      top_p: 1.0
+      max_new_tokens: 64
+      prettify_markdown: false
+      return_markdown_images: false
+      visualize: false

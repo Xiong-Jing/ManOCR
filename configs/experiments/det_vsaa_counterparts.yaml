@@ -1,0 +1,89 @@
+experiment:
+  name: det_vsaa_counterparts
+  task: detection_module_ablation
+
+controlled_variables:
+  reference_config: configs/detection/dbnetpp_official_baseline.yaml
+  backbone: ResNetBackbone/resnet18
+  neck_base: DBFPN_with_ASF
+  head: DBHead
+  train_split: detection_data.train_list
+  validation_split: detection_data.val_list
+  test_split: detection_data.test_list
+  epochs: 100
+  optimizer: AdamW
+  learning_rate: 0.0001
+  weight_decay: 0.0001
+  scheduler: cosine
+  warmup_epochs: 5
+  input_size: [1056, 768]
+  batch_size: 16
+  seed: 42
+  changed_component_only: post_fusion_attention_or_direction_module
+
+validation_policy:
+  protocol: unified_strict
+  iou: 0.75
+  degradation_enabled: false
+  every_epoch: true
+  best_checkpoint_metric: fmeasure
+  test_matches_validation: true
+
+experiments:
+  - name: dbnetpp_official_baseline
+    label: No attention baseline
+    direction_module: none
+    config: configs/detection/dbnetpp_official_baseline.yaml
+    validation_logic: unified_strict
+    purpose: Baseline without an extra directional attention module.
+
+  - name: dbnetpp_strip_pooling
+    label: Strip Pooling counterpart
+    direction_module: strip_pooling
+    config: configs/detection/dbnetpp_strip_pooling.yaml
+    validation_logic: unified_strict
+    purpose: Test whether generic strip pooling is sufficient.
+
+  - name: dbnetpp_coordinate_attention
+    label: Coordinate Attention counterpart
+    direction_module: coordinate_attention
+    config: configs/detection/dbnetpp_coordinate_attention.yaml
+    validation_logic: unified_strict
+    purpose: Compare against generic coordinate attention.
+
+  - name: dbnetpp_horizontal_strip
+    label: Horizontal-only strip
+    direction_module: horizontal_strip
+    config: configs/detection/dbnetpp_horizontal_strip.yaml
+    validation_logic: unified_strict
+    purpose: Verify that an arbitrary strip direction is not sufficient.
+
+  - name: dbnetpp_vertical_strip
+    label: Vertical-only strip
+    direction_module: vertical_strip
+    config: configs/detection/dbnetpp_vertical_strip.yaml
+    validation_logic: unified_strict
+    purpose: Test vertical context without explicit horizontal suppression.
+
+  - name: dbnetpp_vsaa
+    label: VSAA
+    direction_module: vsaa
+    config: configs/detection/dbnetpp_vsaa.yaml
+    validation_logic: unified_strict
+    purpose: Test vertical continuity plus limited horizontal context.
+
+workflow:
+  train_script: scripts/train_detection.py
+  eval_script: scripts/eval_detection.py
+  runner: scripts/run_det_vsaa_counterparts.sh
+  summary_script: tools/summarize_vsaa_counterparts.py
+  checkpoint_name: best.pth
+  eval_splits: [val, test]
+
+target_runtime:
+  hardware: NVIDIA GeForce RTX 4090 24GB
+  paths_config: configs/paths/remote_server.yaml
+
+outputs:
+  eval_suffix: _vsaa_counterpart
+  summary_prefix: detection_vsaa_counterparts

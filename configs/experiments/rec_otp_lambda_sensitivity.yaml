@@ -1,0 +1,107 @@
+experiment:
+  name: rec_otp_lambda_sensitivity
+  task: recognition_loss_weight_ablation
+  paper_section: "3.3"
+
+controlled_variables:
+  reference_model: configs/recognition/svtr_official_dab_lortho.yaml
+  architecture: SVTROfficialRecognizer
+  dab_enabled: true
+  dataset: recognition_data
+  train_split: recognition_data.train_list
+  validation_split: recognition_data.val_list
+  test_split: recognition_data.test_list
+  epochs: 200
+  optimizer: AdamW
+  learning_rate: 6.0e-05
+  weight_decay: 3.0e-05
+  scheduler: cosine
+  warmup_epochs: 10
+  input_size: [256, 128]
+  batch_size: 96
+  seed: 42
+  changed_variable_only: orthographic_transition_penalty_weight
+
+lambda_protocol:
+  values: [0.0, 0.025, 0.05, 0.1, 0.2, 0.5]
+  loss_equation: L_total = L_CTC + lambda_align * L_align + lambda * L_OTP
+  schedule: constant_from_epoch_1
+  lambda_zero_meaning: Keep DAB and disable OTP completely.
+  positive_lambda_initial_equals_final: true
+  positive_lambda_activate_epoch: 1
+  positive_lambda_warmup_epochs: 0
+  positive_lambda_decay: false
+
+validation_policy:
+  metric_protocol: strict_for_all_lambda_values
+  word_accuracy: exact_match
+  character_accuracy: (N-S-D)/N
+  cer: (S+D+I)/N
+  every_epoch: false
+  interval_epochs: 50
+  final_epoch_always: true
+  best_checkpoint_metric: word_accuracy
+  validation_and_test_match: true
+  tolerance_applied: false
+
+experiments:
+  - name: svtr_dab_otp_lambda_0
+    label: "lambda = 0"
+    lambda: 0.0
+    otp_enabled: false
+    config: configs/recognition/svtr_dab_otp_lambda_0.yaml
+    validation_logic: unified_strict
+  - name: svtr_dab_otp_lambda_0p025
+    label: "lambda = 0.025"
+    lambda: 0.025
+    otp_enabled: true
+    config: configs/recognition/svtr_dab_otp_lambda_0p025.yaml
+    validation_logic: unified_strict
+  - name: svtr_dab_otp_lambda_0p05
+    label: "lambda = 0.05"
+    lambda: 0.05
+    otp_enabled: true
+    config: configs/recognition/svtr_dab_otp_lambda_0p05.yaml
+    validation_logic: unified_strict
+  - name: svtr_dab_otp_lambda_0p1
+    label: "lambda = 0.1"
+    lambda: 0.1
+    otp_enabled: true
+    config: configs/recognition/svtr_dab_otp_lambda_0p1.yaml
+    validation_logic: unified_strict
+  - name: svtr_dab_otp_lambda_0p2
+    label: "lambda = 0.2"
+    lambda: 0.2
+    otp_enabled: true
+    config: configs/recognition/svtr_dab_otp_lambda_0p2.yaml
+    validation_logic: unified_strict
+  - name: svtr_dab_otp_lambda_0p5
+    label: "lambda = 0.5"
+    lambda: 0.5
+    otp_enabled: true
+    config: configs/recognition/svtr_dab_otp_lambda_0p5.yaml
+    validation_logic: unified_strict
+
+workflow:
+  train_script: scripts/train_recognition.py
+  eval_script: scripts/eval_recognition.py
+  runner: scripts/run_rec_otp_lambda_sensitivity.sh
+  summary_script: tools/summarize_otp_lambda_sensitivity.py
+  checkpoint_name: best.pth
+  eval_splits: [val, test]
+
+target_runtime:
+  hardware: NVIDIA GeForce RTX 4090 24GB
+  paths_config: configs/paths/remote_server.yaml
+
+outputs:
+  metrics_root: outputs/metrics/recognition
+  summary_prefix: recognition_otp_lambda_sensitivity
+
+interpretation_guardrails:
+  lambda_0p1_tradeoff_claim: >-
+    Use "selected as a stable trade-off" only if lambda=0.1 is not the numerical
+    optimum but is close to the best validation result and remains stable on test.
+  high_lambda_degradation_hypothesis: >-
+    If performance drops for large lambda, report over-constraint of rare historical
+    variants only as an interpretation supported by error analysis, not as a measured fact.

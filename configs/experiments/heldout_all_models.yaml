@@ -1,0 +1,79 @@
+experiment:
+  name: all_models_heldout_test
+  task: heldout_evaluation
+
+protocol:
+  default_splits: [test]
+  checkpoint_policy: best_then_last
+  require_all_models: true
+  validation_test_invariant: >-
+    Validation and test use the same evaluator, checkpoint, decoding/postprocess
+    configuration, batch settings, and metric function; only the manifest split changes.
+  test_usage: >-
+    The held-out test split is evaluated only after model and hyperparameter selection
+    on the validation split.
+
+target_runtime:
+  hardware: NVIDIA GeForce RTX 4090 24GB
+  paths_config: configs/paths/remote_server.yaml
+  environment_variables:
+    - OCR_MANCHU_PROJECT_ROOT
+    - OCR_MANCHU_DET_ROOT
+    - OCR_MANCHU_REC_ROOT
+    - OCR_MANCHU_OUTPUT_ROOT
+
+workflow:
+  runner: scripts/run_heldout_tests.py
+  shell: scripts/run_all_heldout_tests.sh
+
+tasks:
+  recognition:
+    evaluator: scripts/eval_recognition.py
+    checkpoint_subdir: recognition
+    data_section: recognition_data
+    batch_size: 256
+    num_workers: 8
+    save_predictions: true
+    configs:
+      - configs/recognition/crnn_baseline.yaml
+      - configs/recognition/parseq_baseline.yaml
+      - configs/recognition/abinet_baseline.yaml
+      - configs/recognition/svtrv2_baseline.yaml
+      - configs/recognition/svtrv2_nrtr_baseline.yaml
+      - configs/recognition/dcm_baseline.yaml
+      - configs/recognition/svtr_official_baseline.yaml
+      - configs/recognition/svtr_official_dab.yaml
+      - configs/recognition/svtr_official_lortho.yaml
+      - configs/recognition/svtr_official_dab_lortho.yaml
+      - configs/recognition/svtr_dab_otp_lambda_0.yaml
+      - configs/recognition/svtr_dab_otp_lambda_0p025.yaml
+      - configs/recognition/svtr_dab_otp_lambda_0p05.yaml
+      - configs/recognition/svtr_dab_otp_lambda_0p1.yaml
+      - configs/recognition/svtr_dab_otp_lambda_0p2.yaml
+      - configs/recognition/svtr_dab_otp_lambda_0p5.yaml
+
+  detection:
+    evaluator: scripts/eval_detection.py
+    checkpoint_subdir: detection
+    data_section: detection_data
+    batch_size: 8
+    num_workers: 8
+    save_predictions: true
+    configs:
+      - configs/detection/east_baseline.yaml
+      - configs/detection/craft_baseline.yaml
+      - configs/detection/dbnet_baseline.yaml
+      - configs/detection/ppocrv5_det_baseline.yaml
+      - configs/detection/hisam_baseline.yaml
+      - configs/detection/dbnetpp_official_baseline.yaml
+      - configs/detection/dbnetpp_strip_pooling.yaml
+      - configs/detection/dbnetpp_coordinate_attention.yaml
+      - configs/detection/dbnetpp_horizontal_strip.yaml
+      - configs/detection/dbnetpp_vertical_strip.yaml
+      - configs/detection/dbnetpp_vsaa.yaml
+      - configs/detection/dbnetpp_asym_shrink.yaml
+      - configs/detection/dbnetpp_vsaa_asym_shrink.yaml
+
+outputs:
+  run_summary_subdir: metrics/experiment_runs
+  result_schema: ocr_manchu.experiment_result.v1

@@ -1,0 +1,74 @@
+experiment:
+  name: e2e_ocr_detector_recognizer_2x2
+  task: e2e_ocr
+
+protocol:
+  default_splits: [validation, test]
+  checkpoint_policy: best_then_last
+  strict_evaluation: true
+  detector_iou_threshold: 0.75
+  detector_degradation: false
+  recognition_metric_tolerance: false
+  matching: greedy_bbox_iou_same_as_detection_evaluator
+  crop_source: detector_predictions
+  uses_ground_truth_crops: false
+  reading_order: columns_left_to_right_words_top_to_bottom
+  word_correctness: >-
+    Detection match plus exact transcription equality.
+  e2e_cer: >-
+    Standard corpus-level (S+D+I)/N. Missed ground-truth words contribute full
+    deletions and unmatched predicted-box transcriptions contribute full
+    insertions; no per-word tolerance is deducted.
+  page_text_separators: >-
+    One space between word tokens and one newline between columns; these
+    separators are included in page-level edit metrics.
+  require_all_ground_truth_transcriptions: true
+
+data:
+  paths_config: configs/paths/remote_server.yaml
+  page_manifest_section: e2e_data
+  split_manifest_keys:
+    train: train_list
+    validation: val_list
+    test: test_list
+  split_policy: >-
+    Reuse the existing page-level detection train/validation/test partition.
+    Detector and recognizer weights remain those trained with their current
+    training configs; E2E scoring runs on validation and held-out test pages.
+
+target_runtime:
+  hardware: NVIDIA GeForce RTX 4090 24GB
+  device: cuda
+  crop_padding: 4
+  crop_padding_ratio: 0.04
+
+workflow:
+  evaluator: scripts/eval_full_ocr.py
+  runner: scripts/run_e2e_ocr_experiments.py
+  shell: scripts/run_e2e_ocr_experiments.sh
+
+pipelines:
+  - id: dbnetpp_svtr
+    name: DBNet++ + SVTR
+    detector_config: configs/detection/dbnetpp_official_baseline.yaml
+    recognizer_config: configs/recognition/svtr_official_baseline.yaml
+
+  - id: ours_detector_ours_recognizer
+    name: Ours detector + Ours recognizer
+    detector_config: configs/detection/dbnetpp_vsaa_asym_shrink.yaml
+    recognizer_config: configs/recognition/svtr_official_dab_lortho.yaml
+
+  - id: dbnetpp_ours_recognizer
+    name: DBNet++ + Ours recognizer
+    detector_config: configs/detection/dbnetpp_official_baseline.yaml
+    recognizer_config: configs/recognition/svtr_official_dab_lortho.yaml
+
+  - id: ours_detector_svtr
+    name: Ours detector + SVTR
+    detector_config: configs/detection/dbnetpp_vsaa_asym_shrink.yaml
+    recognizer_config: configs/recognition/svtr_official_baseline.yaml
+
+outputs:
+  metrics_subdir: metrics/e2e_ocr
+  save_page_records: true
+  result_schema: ocr_manchu.experiment_result.v1
