@@ -1,0 +1,37 @@
+project_root: "/root/code/OCR_Manchu"
+
+detection_data:
+  root: "/root/code/Manchu_Detection_Data"
+  raw_images: "/root/code/Manchu_Detection_Data/raw/images"
+  raw_annotations: "/root/code/Manchu_Detection_Data/raw/annotations_json"
+  clean_annotations: "/root/code/Manchu_Detection_Data/processed/annotations_clean"
+  train_list: "/root/code/Manchu_Detection_Data/processed/train.txt"
+  val_list: "/root/code/Manchu_Detection_Data/processed/val.txt"
+  test_list: "/root/code/Manchu_Detection_Data/processed/test.txt"
+
+e2e_data:
+  root: "/root/code/Manchu_Detection_Data/processed/e2e"
+  annotation_dir: "/root/code/Manchu_Detection_Data/processed/e2e/annotations"
+  review_crop_dir: "/root/code/Manchu_Detection_Data/processed/e2e/review_crops"
+  transcription_template: "/root/code/Manchu_Detection_Data/processed/e2e/transcriptions.csv"
+  train_list: "/root/code/Manchu_Detection_Data/processed/e2e/train.txt"
+  val_list: "/root/code/Manchu_Detection_Data/processed/e2e/val.txt"
+  test_list: "/root/code/Manchu_Detection_Data/processed/e2e/test.txt"
+
+recognition_data:
+  root: "/root/code/Manchu_Recognition_Data"
+  raw_images: "/root/code/Manchu_Recognition_Data/raw/word_images"
+  raw_excel: "/root/code/Manchu_Recognition_Data/raw/labels.xlsx"
+  labels_csv: "/root/code/Manchu_Recognition_Data/processed/labels.csv"
+  charset: "/root/code/Manchu_Recognition_Data/processed/charset.txt"
+  transition_matrix: "/root/code/Manchu_Recognition_Data/processed/transition_matrix.npy"
+  train_list: "/root/code/Manchu_Recognition_Data/processed/train.txt"
+  val_list: "/root/code/Manchu_Recognition_Data/processed/val.txt"
+  test_list: "/root/code/Manchu_Recognition_Data/processed/test.txt"
+
+outputs:
+  root: "/root/code/OCR_Manchu/outputs"
+  checkpoints: "/root/code/OCR_Manchu/outputs/checkpoints"
+  logs: "/root/code/OCR_Manchu/outputs/logs"
+  predictions: "/root/code/OCR_Manchu/outputs/predictions"
+  metrics: "/root/code/OCR_Manchu/outputs/metrics"
