@@ -1,0 +1,70 @@
+experiment:
+  name: svtr_dab_otp_lambda_0p05
+  task: recognition
+  paths_config: configs/paths/remote_server.yaml
+ablation: {study: otp_lambda_sensitivity, parameter: lambda_ortho, value: 0.05, otp_enabled: true, fixed_component: DAB, validation_logic_source: configs/recognition/svtr_official_baseline.yaml}
+runtime: {device: cuda, allow_cpu: false}
+data:
+  image_height: 256
+  image_width: 128
+  sequence_axis: height
+  batch_size: 96
+  num_workers: 8
+  augmentation: {enabled: true, rotation_degrees: 0.5, translate_ratio: 0.008, scale_min: 0.985, scale_max: 1.015, brightness: 0.04, contrast: 0.04}
+model:
+  name: SVTROfficialRecognizer
+  in_channels: 3
+  embed_dim: 384
+  patch_size: [2, 16]
+  patch_embed_type: conv
+  depths: [3, 4, 3]
+  mixer_types: [local, local, global]
+  num_heads: 8
+  mlp_ratio: 4.0
+  dropout: 0.04
+  global_mixer_axis: height
+  sequence_axis: height
+  use_2d_pos_embed: true
+  max_image_height: 256
+  max_image_width: 128
+  pos_dropout: 0.0
+  pooling_type: gated_attention
+  sequence_context_type: bilstm
+  sequence_context_hidden_dim: 384
+  sequence_context_layers: 1
+  sequence_context_dropout: 0.04
+  sequence_context_residual_scale: 0.18
+  sequence_refine_layers: 2
+  sequence_refine_kernel_size: 5
+  sequence_refine_mlp_ratio: 2.0
+  sequence_refine_dropout: 0.04
+  sequence_refine_residual_scale: 0.12
+  use_diacritic_branch: true
+  dab_dropout: 0.01
+  dab_sobel_trainable: true
+  dab_edge_normalize: true
+  dab_edge_scale: 0.5
+  dab_fusion_attn_scale: 0.06
+  dab_fusion_ffn_scale: 0.015
+  dab_fusion_max_scale: 0.12
+  dab_fusion_gate_bias: -1.5
+loss:
+  blank_idx: 0
+  zero_infinity: true
+  use_orthographic_loss: true
+  use_alignment_loss: true
+  lambda_align: 0.015
+  lambda_align_final: 0.005
+  lambda_align_decay_start_epoch: 80
+  lambda_align_decay_end_epoch: 160
+  align_label_smoothing: 0.03
+  lambda_align_activate_epoch: 5
+  lambda_align_warmup_epochs: 20
+  lambda_ortho: 0.05
+  normalize_char_probs: true
+  confidence_weighting: true
+  confidence_power: 2.0
+  min_confidence: 0.02
+  transition_matrix: ${OCR_MANCHU_REC_ROOT:-/root/code/Manchu_Recognition_Data}/processed/transition_matrix.npy
+decode: {use_lexicon: true, lexicon_source: train, max_edit_distance: 2, length_delta: 2, min_word_length: 2, use_ctc_lexicon_rerank: false, ctc_rerank_max_edit_distance: 2, ctc_rerank_length_delta: 2, ctc_rerank_min_word_length: 2, ctc_rerank_max_candidates: 40, ctc_rerank_prior_weight: 0.04}
+train: {epochs: 200, lr: 6.0e-05, min_lr: 1.0e-06, weight_decay: 3.0e-05, amp: true, seed: 42, log_interval: 100, val_interval: 50, rerank_val_interval: 0, validate_during_training: true, grad_accum_steps: 1, warmup_epochs: 10, scheduler: cosine, grad_clip_norm: 1.0, early_stop_patience: 0, use_ema: true, ema_decay: 0.999, channels_last: true, cudnn_benchmark: true, allow_tf32: true, best_metric: word_accuracy}
