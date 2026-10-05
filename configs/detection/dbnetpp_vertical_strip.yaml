@@ -1,0 +1,103 @@
+experiment:
+  name: dbnetpp_vertical_strip
+  task: detection
+  paths_config: configs/paths/remote_server.yaml
+runtime:
+  device: cuda
+  allow_cpu: false
+data:
+  target_height: 1056
+  target_width: 768
+  batch_size: 16
+  num_workers: 8
+  shrink_ratio: 0.4
+  augmentation:
+    enabled: false
+    nonuniform_scale_prob: 0.8
+    horizontal_scale_min: 0.84
+    horizontal_scale_max: 0.96
+    vertical_scale_min: 1.05
+    vertical_scale_max: 1.22
+    elastic_prob: 0.55
+    elastic_alpha_x: 14.0
+    elastic_alpha_y: 8.0
+    elastic_sigma: 8.0
+    blur_prob: 0.65
+    gaussian_blur_weight: 0.4
+    motion_blur_weight: 0.35
+    defocus_blur_weight: 0.25
+    gaussian_kernel_sizes:
+    - 3
+    - 5
+    - 7
+    motion_kernel_sizes:
+    - 5
+    - 9
+    - 13
+    defocus_kernel_sizes:
+    - 5
+    - 9
+    - 13
+    gaussian_sigma_min: 0.4
+    gaussian_sigma_max: 1.4
+    noise_contrast_prob: 0.8
+    contrast_min: 0.45
+    contrast_max: 0.75
+    multiplicative_noise_std: 0.08
+    gaussian_noise_std: 0.035
+  label_generator:
+    use_asymmetric_shrink: false
+    shrink_ratio_x: 0.65
+    shrink_ratio_y: 0.9
+    as_auxiliary: true
+model:
+  name: DBNetPP
+  backbone:
+    name: ResNetBackbone
+    arch: resnet18
+    pretrained: false
+  neck:
+    name: DBFPN
+    inner_channels: 128
+    out_channels: 256
+    use_asf: true
+    use_vsaa: false
+    direction_module: vertical_strip
+    strip_pool_sizes:
+    - [20, 12]
+    - [12, 20]
+    strip_reduction: 4
+    coordinate_reduction: 32
+    vsaa_reduction: 4
+    vsaa_vertical_kernel: 15
+    vsaa_horizontal_kernel: 5
+    vsaa_dropout: 0.0
+    vsaa_residual_scale: 0.1
+  head:
+    name: DBHead
+    in_channels: 256
+    k: 50
+loss:
+  alpha: 1.0
+  beta: 10.0
+  gamma_as: 0.0
+  negative_ratio: 3.0
+  eps: 1.0e-06
+eval:
+  binary_thresh: 0.3
+  box_thresh: 0.5
+  unclip_ratio: 1.5
+  iou_thresh: 0.75
+  min_size: 3
+train:
+  epochs: 100
+  lr: 0.0001
+  min_lr: 1.0e-06
+  weight_decay: 0.0001
+  amp: true
+  seed: 42
+  log_interval: 20
+  val_interval: 1
+  grad_accum_steps: 1
+  warmup_epochs: 5
+  scheduler: cosine
