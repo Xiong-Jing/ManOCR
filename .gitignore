@@ -1,0 +1,56 @@
+# Python
+__pycache__/
+.pytest_cache/
+*.pyc
+*.pyo
+*.pyd
+*.egg-info/
+.venv/
+venv/
+env/
+.env
+*.env
+
+# IDE
+.vscode/
+.idea/
+
+# Data
+data/raw/
+data/processed/
+*.xlsx
+*.csv
+*.tsv
+*.pkl
+*.pickle
+*.npy
+*.npz
+
+# External large files
+*.jpg
+*.jpeg
+*.png
+*.tif
+*.tiff
+*.bmp
+*.gif
+*.pdf
+
+# Outputs
+outputs/
+full_ocr_workspace/
+*.log
+*.out
+
+# Model weights
+*.pth
+*.pt
+*.ckpt
+*.onnx
+*.engine
+*.safetensors
+*.h5
+
+# System
+.DS_Store
+Thumbs.db

@@ -1,0 +1,4 @@
+# Optional hosted-API experiment dependencies.
+# The Qwen adapter itself uses Python's standard HTTP library.
+paddleocr>=3.6.0,<4
+gradio_client>=1.3
