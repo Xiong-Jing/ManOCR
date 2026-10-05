@@ -1,0 +1,19 @@
+baseline:
+  name: "SVTRv2 + NRTR"
+  task: "recognition"
+  status: "project_runnable"
+  purpose: >-
+    SVTRv2 comparison baseline with a shared auxiliary NRTR autoregressive
+    decoder during training and the unchanged CTC branch during evaluation.
+
+data:
+  image_height: 256
+  image_width: 128
+  sequence_axis: "height"
+
+expected_metrics:
+  output_json: "outputs/metrics/recognition/svtrv2_nrtr_baseline/eval_test.json"
+  required_keys:
+    - "word_accuracy"
+    - "character_accuracy"
+    - "cer"

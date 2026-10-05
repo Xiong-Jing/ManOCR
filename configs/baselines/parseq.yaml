@@ -1,0 +1,18 @@
+baseline:
+  name: "PARSeq"
+  task: "recognition"
+  status: "project_runnable"
+  purpose: "Paper comparison baseline for word recognition."
+
+data:
+  image_height: 256
+  image_width: 128
+  sequence_axis: "height"
+
+expected_metrics:
+  output_json: "outputs/metrics/recognition/parseq_baseline/eval_test.json"
+  required_keys:
+    - "word_accuracy"
+    - "character_accuracy"
+    - "cer"
+
