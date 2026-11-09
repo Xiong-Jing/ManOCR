@@ -309,6 +309,9 @@ class DetResizePad:
         image: Image.Image,
         polygons: List[Dict],
     ) -> Tuple[Image.Image, List[Dict], Dict]:
+        if self.augmentation_cfg.get("profile") == "paper_table3":
+            from manchu_ocr.data.transforms.paper_detection_augmentation import paper_augmentation
+            return paper_augmentation(image, polygons)
         meta = {}
 
         image, polygons, scale_meta = self._apply_nonuniform_scale(image, polygons)
