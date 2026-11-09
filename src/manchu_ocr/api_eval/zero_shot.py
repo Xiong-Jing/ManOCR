@@ -220,6 +220,7 @@ def normalize_romanized_manchu(
     remove_whitespace: bool = True,
     lowercase: bool = True,
     normalize_apostrophes: bool = True,
+    page_transcription: bool = False,
 ) -> str:
     """Apply the same mechanical label rules to every API model output.
 
@@ -231,6 +232,8 @@ def normalize_romanized_manchu(
     normalized = normalized.strip()
     if remove_whitespace:
         normalized = re.sub(r"\s+", "", normalized)
+    if page_transcription:
+        normalized = "\n".join(" ".join(line.split()) for line in normalized.splitlines() if line.strip())
     if lowercase:
         normalized = normalized.lower()
     if normalize_apostrophes:

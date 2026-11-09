@@ -71,6 +71,7 @@ def build_openai_vision_payload(
     prompt: str,
     image_uri: str,
     generation: Mapping[str, Any],
+    image_options: Mapping[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Build an image request without ever accepting or embedding a label."""
     payload: dict[str, Any] = {
@@ -89,6 +90,12 @@ def build_openai_vision_payload(
     for key in ("temperature", "top_p", "max_tokens", "seed"):
         if key in generation and generation[key] is not None:
             payload[key] = generation[key]
+    # DashScope's OpenAI-compatible image options are siblings of image_url.
+    for key in ("min_pixels", "max_pixels"):
+        if image_options and key in image_options:
+            payload["messages"][0]["content"][0][key] = image_options[key]
+    if "vl_high_resolution_images" in generation:
+        payload["vl_high_resolution_images"] = generation["vl_high_resolution_images"]
     return payload
 
 
@@ -101,6 +108,11 @@ def extract_openai_message_text(response: Mapping[str, Any]) -> str:
             retryable=False,
         ) from exc
 
+    if content is None and (
+        response["choices"][0]["message"].get("refusal")
+        or response["choices"][0].get("finish_reason") == "content_filter"
+    ):
+        return ""
     if isinstance(content, str):
         return content
     if isinstance(content, list):
@@ -142,6 +154,7 @@ class OpenAICompatibleVisionProvider:
         self.endpoint = _chat_completions_url(self.base_url)
         self.prompt = prompt
         self.generation = dict(generation)
+        self.image_options = dict(config.get("image_options", {}))
         self.timeout_seconds = timeout_seconds
         key_env = str(config.get("api_key_env", ""))
         self.api_key = os.environ.get(key_env, "") if key_env else ""
@@ -156,6 +169,7 @@ class OpenAICompatibleVisionProvider:
             prompt=self.prompt,
             image_uri=image_data_uri(image_path),
             generation=self.generation,
+            image_options=self.image_options,
         )
         headers = {"Content-Type": "application/json"}
         if self.api_key:
