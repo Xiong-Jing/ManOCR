@@ -15,6 +15,7 @@ from manchu_ocr.models.recognition.decoders.lexicon_corrector import (
     load_lexicon_from_manifest,
 )
 from manchu_ocr.utils.config import load_yaml
+from manchu_ocr.utils.paper_protocol import validate_paper_checkpoint
 
 
 class RecognitionPipeline:
@@ -42,6 +43,7 @@ class RecognitionPipeline:
         )
 
         checkpoint = torch.load(checkpoint_path, map_location=self.device)
+        validate_paper_checkpoint(self.cfg, checkpoint)
         model_cfg = self.cfg
 
         checkpoint_cfg = checkpoint.get("config")

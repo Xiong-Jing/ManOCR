@@ -11,6 +11,7 @@ from manchu_ocr.models.detection.builder import build_detection_model
 from manchu_ocr.models.detection.postprocess.db_postprocess import DBPostProcessor
 from manchu_ocr.models.detection.postprocess.polygon_restore import restore_polygons
 from manchu_ocr.utils.config import load_yaml
+from manchu_ocr.utils.paper_protocol import validate_paper_checkpoint
 
 
 class DetectionPipeline:
@@ -44,6 +45,7 @@ class DetectionPipeline:
 
         self.model = build_detection_model(self.cfg).to(self.device)
         checkpoint = torch.load(checkpoint_path, map_location=self.device)
+        validate_paper_checkpoint(self.cfg, checkpoint)
         self.model.load_state_dict(checkpoint["model"], strict=True)
         self.model.eval()
 
