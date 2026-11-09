@@ -6,6 +6,7 @@ from typing import Dict, List, Sequence, Tuple
 import cv2
 import numpy as np
 import pyclipper
+from manchu_ocr.data.label_generators.edge_shrink import edge_asymmetric_shrink
 
 
 def polygon_area(points: np.ndarray) -> float:
@@ -243,6 +244,8 @@ class DBLabelGenerator:
     shrink_ratio_x: float = 0.65
     shrink_ratio_y: float = 0.90
     as_auxiliary: bool = True
+    as_mode: str = "legacy_scale"
+    as_gamma: float = 1 / 3
 
     def __call__(
         self,
@@ -280,11 +283,15 @@ class DBLabelGenerator:
             shrinked = shrink_polygon(points, self.shrink_ratio)
 
             if self.use_asymmetric_shrink:
-                as_shrinked = asymmetric_shrink_polygon(
-                    points,
-                    shrink_ratio_x=self.shrink_ratio_x,
-                    shrink_ratio_y=self.shrink_ratio_y,
-                )
+                if self.as_mode == "edge_offset":
+                    if self.as_auxiliary:
+                        raise ValueError("Paper AS changes targets; set as_auxiliary=false")
+                    as_shrinked = edge_asymmetric_shrink(points, self.shrink_ratio, self.as_gamma)
+                elif self.as_mode == "legacy_scale":
+                    as_shrinked = asymmetric_shrink_polygon(
+                        points, shrink_ratio_x=self.shrink_ratio_x, shrink_ratio_y=self.shrink_ratio_y)
+                else:
+                    raise ValueError(f"Unknown AS mode: {self.as_mode}")
 
                 if as_shrinked is not None:
                     cv2.fillPoly(as_prob_map, [as_shrinked.astype(np.int32)], 1.0)
