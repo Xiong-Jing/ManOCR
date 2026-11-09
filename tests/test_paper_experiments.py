@@ -337,6 +337,41 @@ def test_structured_api_refusal_is_an_empty_successful_prediction():
     assert extract_openai_message_text({'choices': [{'message': {'content': None, 'refusal': 'refused'}}]}) == ''
 
 
+def test_page_subset_preserves_annotation_paths_and_content_identity(tmp_path):
+    from manchu_ocr.data.page_splits import read_manifest
+    rows = []
+    for index in range(3):
+        folder = tmp_path / str(index)
+        folder.mkdir()
+        image, annotation, _ = make_page(folder)
+        annotation.write_text(json.dumps({'items': [
+            {'bbox': [4, 4, 12, 24], 'text': 'ab'},
+            {'bbox': [35, 4, 45, 24], 'text': 'cd'}]}))
+        rows.append(f'{image}\t{annotation}\n')
+    manifest = tmp_path / 'all.txt'
+    manifest.write_text(''.join(rows), encoding='utf-8')
+    cfg = load_yaml(ROOT / 'configs/experiments/lmm_page_zero_shot.yaml')
+    ns = script('scripts/run_lmm_zero_shot.py')
+    kwargs = dict(experiment_config=cfg, paths_config={'e2e_data': {'test_list': str(manifest)}},
+                  selected_splits=['test'], output_root=tmp_path / 'outputs', run_tag='subset',
+                  max_samples=2, skip_image_check=False, overwrite=False)
+    first = ns['prepare_splits'](**kwargs)['test']
+    assert len(read_manifest(first.evaluation_manifest)) == 2
+    reloaded = load_page_manifest(first.evaluation_manifest)
+    assert [item.label for item in reloaded] == [item.label for item in first.selected_samples]
+    assert all('\n' in item.label for item in reloaded)
+    Image.new('RGB', (64, 80), 'black').save(first.selected_samples[0].image_path)
+    second = ns['prepare_splits'](**kwargs)['test']
+    assert second.selected_sha256 != first.selected_sha256
+
+
+def test_prior_cli_rejects_malformed_training_rows(tmp_path):
+    manifest = tmp_path / 'train.txt'
+    manifest.write_text('image\tab\nmalformed\n', encoding='utf-8')
+    with pytest.raises(ValueError, match='Malformed'):
+        script('tools/build_transition_matrix.py')['read_labels'](manifest)
+
+
 def test_detector_paper_config_forward_and_target_losses():
     from manchu_ocr.models.detection.builder import build_detection_model
     from manchu_ocr.losses.db_loss import DBLoss
