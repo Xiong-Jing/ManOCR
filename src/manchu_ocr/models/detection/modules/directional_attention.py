@@ -6,7 +6,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-from manchu_ocr.models.detection.modules.vsaa import VSAA
+from manchu_ocr.models.detection.modules.vsaa import VSAA, PaperVSAA
 
 
 class ConvBNReLU(nn.Sequential):
@@ -341,6 +341,7 @@ def build_direction_module(
     vsaa_horizontal_kernel: int = 5,
     vsaa_dropout: float = 0.0,
     vsaa_residual_scale: float = 0.1,
+    vsaa_implementation: str = "legacy",
 ) -> nn.Module:
     normalized = normalize_direction_module_name(name)
 
@@ -369,6 +370,10 @@ def build_direction_module(
             reduction=strip_reduction,
         )
 
+    if vsaa_implementation == "paper":
+        return PaperVSAA(channels, vsaa_reduction, vsaa_vertical_kernel, vsaa_horizontal_kernel)
+    if vsaa_implementation != "legacy":
+        raise ValueError(f"Unknown VSAA implementation: {vsaa_implementation}")
     return VSAA(
         channels=channels,
         reduction=vsaa_reduction,

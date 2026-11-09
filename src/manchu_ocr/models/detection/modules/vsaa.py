@@ -2,6 +2,26 @@
 import torch.nn as nn
 
 
+class PaperVSAA(nn.Module):
+    """Eqs. (2)--(4): summed directional strips, one spatial gate, Y = X * As.
+
+    Reduction controls strip-response channels. The legacy channel gate and
+    residual refinement are deliberately absent from this paper implementation.
+    """
+    def __init__(self, channels, reduction=4, vertical_kernel=15, horizontal_kernel=5):
+        super().__init__()
+        if reduction <= 0 or min(vertical_kernel, horizontal_kernel) <= 0 or vertical_kernel % 2 == 0 or horizontal_kernel % 2 == 0:
+            raise ValueError("Positive reduction and odd positive strip lengths required")
+        hidden = max(channels // reduction, 1)
+        self.vertical = nn.Conv2d(channels, hidden, (vertical_kernel, 1), padding=(vertical_kernel // 2, 0))
+        self.horizontal = nn.Conv2d(channels, hidden, (1, horizontal_kernel), padding=(0, horizontal_kernel // 2))
+        self.project = nn.Conv2d(hidden, 1, 1)
+
+    def forward(self, x):
+        spatial = torch.sigmoid(self.project(self.vertical(x) + self.horizontal(x)))
+        return x * spatial
+
+
 class ConvBNAct(nn.Module):
     def __init__(
         self,
