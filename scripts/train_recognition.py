@@ -1,4 +1,6 @@
-﻿import argparse
+from manchu_ocr.utils.paper_protocol import validate_paper_checkpoint, is_better_checkpoint, bind_transition_prior
+from manchu_ocr.data.orthography import sha256_file
+import argparse
 import copy
 import math
 import os
@@ -9,6 +11,8 @@ from typing import Dict, Optional
 os.environ.setdefault("PYTORCH_CUDA_ALLOC_CONF", "expandable_segments:True")
 
 import torch
+from time import perf_counter
+from manchu_ocr.utils.experiment_result import collect_torch_runtime
 from torch.amp import GradScaler, autocast
 from torch.utils.data import DataLoader
 
@@ -355,6 +359,7 @@ def save_checkpoint(
     ema_model: Optional[torch.nn.Module] = None,
     scheduler: Optional[object] = None,
     scaler: Optional[GradScaler] = None,
+    best_cer: float = float("inf"),
 ) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
 
@@ -370,6 +375,7 @@ def save_checkpoint(
         "ema_model": eval_model_state if ema_model is not None else None,
         "optimizer": optimizer.state_dict(),
         "best_word_accuracy": best_word_accuracy,
+        "best_cer": best_cer,
         "best_metric_name": best_metric_name,
         "best_metric_value": best_metric_value,
         "config": cfg,
@@ -385,6 +391,7 @@ def save_checkpoint(
 
 
 def main() -> None:
+    invocation_started = perf_counter()
     parser = argparse.ArgumentParser()
     parser.add_argument(
         "--config",
@@ -647,6 +654,7 @@ def main() -> None:
     lambda_ortho = float(cfg["loss"].get("lambda_ortho", 0.0))
 
     if use_orthographic_loss:
+        bind_transition_prior(cfg, rec_cfg)
         ortho_criterion = OrthographicTransitionLoss(
             transition_matrix_path=cfg["loss"]["transition_matrix"],
             blank_idx=int(cfg["loss"].get("blank_idx", 0)),
@@ -707,6 +715,7 @@ def main() -> None:
     scaler = GradScaler("cuda", enabled=use_amp)
     best_word_accuracy = -1.0
     best_metric_value = -1.0
+    best_cer = float("inf")
     epochs_since_improvement = 0
     history = []
     start_epoch = 1
@@ -722,6 +731,8 @@ def main() -> None:
             raise FileNotFoundError(f"Resume checkpoint not found: {resume_path}")
 
         checkpoint = torch.load(resume_path, map_location=device)
+
+        validate_paper_checkpoint(cfg, checkpoint, for_resume=True)
 
         if "model" not in checkpoint:
             raise KeyError(f"Checkpoint does not contain key 'model': {resume_path}")
@@ -766,6 +777,7 @@ def main() -> None:
             except Exception as exc:
                 logger.warning(f"Failed to restore AMP scaler state: {exc!r}")
 
+        best_cer = float(checkpoint.get("best_cer", float("inf")))
         best_word_accuracy = float(checkpoint.get("best_word_accuracy", best_word_accuracy))
         best_metric_name_from_ckpt = checkpoint.get("best_metric_name")
         best_metric_value = float(checkpoint.get("best_metric_value", best_metric_value))
@@ -891,6 +903,7 @@ def main() -> None:
                 "completed-run checkpoint recovery."
             )
         best_word_accuracy = float(recovery_metrics["word_accuracy"])
+        best_cer = float(recovery_metrics["cer"])
 
         save_checkpoint(
             path=best_checkpoint_path,
@@ -901,6 +914,7 @@ def main() -> None:
             cfg=cfg,
             best_metric_name=best_metric_name,
             best_metric_value=best_metric_value,
+            best_cer=best_cer,
             ema_model=ema_model,
             scheduler=scheduler,
             scaler=scaler,
@@ -914,6 +928,7 @@ def main() -> None:
             cfg=cfg,
             best_metric_name=best_metric_name,
             best_metric_value=best_metric_value,
+            best_cer=best_cer,
             ema_model=ema_model,
             scheduler=scheduler,
             scaler=scaler,
@@ -926,6 +941,9 @@ def main() -> None:
         return
 
     for epoch in range(start_epoch, epochs + 1):
+        if device.type == "cuda":
+            torch.cuda.synchronize(device)
+        epoch_started = perf_counter()
         model.train()
 
         total_loss = 0.0
@@ -1087,6 +1105,10 @@ def main() -> None:
                     f"lambda_align={current_lambda_align:.6f}"
                 )
 
+        if device.type == "cuda":
+            torch.cuda.synchronize(device)
+        train_seconds = perf_counter() - epoch_started
+        evaluation_started = perf_counter()
         train_loss = total_loss / max(total_batches, 1)
         train_ctc_loss = total_ctc_loss / max(total_batches, 1)
         train_nrtr_loss = total_nrtr_loss / max(total_batches, 1)
@@ -1153,7 +1175,12 @@ def main() -> None:
                 "ctc_rerank_enabled": False,
             }
 
+        if device.type == "cuda":
+            torch.cuda.synchronize(device)
+        validation_seconds = perf_counter() - evaluation_started if should_validate else 0.0
         current = {
+            "train_seconds": train_seconds,
+            "validation_seconds": validation_seconds,
             "epoch": epoch,
             "lr": float(optimizer.param_groups[0]["lr"]),
             "grad_accum_steps": int(grad_accum_steps),
@@ -1222,7 +1249,9 @@ def main() -> None:
                     "runs every validation epoch."
                 )
 
-            metric_improved = current_best_metric > best_metric_value
+            current_cer = float(val_metrics.get(
+                "ctc_rerank_cer" if best_metric_name.startswith("ctc_rerank") else "cer", float("inf")))
+            metric_improved = is_better_checkpoint(current_best_metric, current_cer, best_metric_value, best_cer)
             best_checkpoint_missing = not best_checkpoint_path.is_file()
 
             if metric_improved or best_checkpoint_missing:
@@ -1233,6 +1262,7 @@ def main() -> None:
                     )
 
                 best_metric_value = current_best_metric
+                best_cer = current_cer
                 best_word_accuracy = val_metrics["word_accuracy"]
                 epochs_since_improvement = 0
 
@@ -1245,6 +1275,7 @@ def main() -> None:
                     cfg=cfg,
                     best_metric_name=best_metric_name,
                     best_metric_value=best_metric_value,
+                    best_cer=best_cer,
                     ema_model=ema_model,
                     scheduler=scheduler,
                     scaler=scaler,
@@ -1278,6 +1309,7 @@ def main() -> None:
             cfg=cfg,
             best_metric_name=best_metric_name,
             best_metric_value=best_metric_value,
+            best_cer=best_cer,
             ema_model=ema_model,
             scheduler=scheduler,
             scaler=scaler,
@@ -1294,6 +1326,17 @@ def main() -> None:
             logger.info("Debug run finished after one epoch.")
             break
 
+    timed = [row for row in history if "train_seconds" in row]
+    save_json({
+        "invocation_seconds_including_setup_and_checkpoint_io": perf_counter() - invocation_started,
+        "train_seconds": sum(row["train_seconds"] for row in timed),
+        "validation_seconds": sum(row["validation_seconds"] for row in timed),
+        "timed_epochs": len(timed), "history_epochs": len(history),
+        "all_history_epochs_timed": len(timed) == len(history),
+        "parameters": sum(p.numel() for p in model.parameters()),
+        "runtime": collect_torch_runtime(device),
+        "note": "Training/validation stage sums exclude standalone test and checkpoint IO; no estimates for untimed epochs",
+    }, metrics_dir / "training_runtime.json")
     logger.info("Training finished.")
 
 

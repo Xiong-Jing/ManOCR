@@ -255,7 +255,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             for match in matching["matches"]
         )
         page_text_pairs.append((page_text, gt_page_text))
-        page_similarities.append(float(page_metrics["edit_similarity"]))
+        page_similarities.append(float(page_metrics["page_transcription_score"]))
         exact_pages += int(page_metrics["exact"])
 
         detailed_matches: List[Dict[str, Any]] = []
@@ -423,6 +423,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         "page_transcription_score": float(
             sum(page_similarities) / max(len(page_similarities), 1)
         ),
+        "page_transcription_score_definition": "mean page 100 * max(0, 1 - word_edit_distance / reference_words)",
         "page_exact_accuracy": safe_ratio(exact_pages, len(samples)),
         "page_text_separator_policy": (
             "single spaces between word tokens and newline between columns; "

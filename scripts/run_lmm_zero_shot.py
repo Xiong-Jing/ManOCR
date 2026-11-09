@@ -196,7 +196,8 @@ def prepare_splits(
     overwrite: bool,
 ) -> dict[str, PreparedSplit]:
     seed = int(experiment_config["protocol"].get("selection_seed", 42))
-    recognition = paths_config["recognition_data"]
+    page_mode = experiment_config["protocol"].get("input_unit") == "full_page"
+    recognition = paths_config["e2e_data" if page_mode else "recognition_data"]
     prepared: dict[str, PreparedSplit] = {}
     manifests_root = (
         output_root
@@ -212,7 +213,11 @@ def prepare_splits(
         source_manifest = Path(
             recognition["val_list" if public_name == "validation" else "test_list"]
         )
-        source_samples = load_recognition_manifest(source_manifest)
+        if page_mode:
+            from manchu_ocr.api_eval.page_ocr import load_page_manifest
+            source_samples = load_page_manifest(source_manifest)
+        else:
+            source_samples = load_recognition_manifest(source_manifest)
         selected = deterministic_subset(
             source_samples,
             limit=max_samples,
@@ -221,6 +226,9 @@ def prepare_splits(
         )
         full_split = len(selected) == len(source_samples)
         source_hash = manifest_sha256(source_manifest)
+        if page_mode:
+            # Freeze annotations and image identities as well as manifest paths.
+            source_hash = text_sha256(source_hash + "".join(item.sample_id for item in source_samples))
 
         if full_split:
             evaluation_manifest = source_manifest
@@ -398,7 +406,11 @@ def _request_one(
             output = provider.predict(sample.image_path)
             raw_response = str(output.text)
             reference = normalize_romanized_manchu(sample.label, **normalization)
-            prediction = normalize_romanized_manchu(raw_response, **normalization)
+            parsed_response = raw_response
+            if normalization.get("page_transcription", False):
+                from manchu_ocr.api_eval.page_ocr import parse_page_response
+                parsed_response = parse_page_response(raw_response)
+            prediction = normalize_romanized_manchu(parsed_response, **normalization)
             counts = sample_error_counts(reference, prediction)
             return {
                 "schema_version": RECORD_SCHEMA,
@@ -702,6 +714,8 @@ def run_model_split(
     applied_generation = _applied_generation(model_config, generation)
     retry_config = dict(protocol.get("retry", {}))
     normalization = _normalization_kwargs(protocol.get("normalization", {}))
+    if protocol.get("input_unit") == "full_page":
+        normalization["page_transcription"] = True
     display_name = str(model_config["display_name"])
     provider_name = str(model_config["provider"])
     identifier = _model_identifier(model_config)
@@ -729,6 +743,9 @@ def run_model_split(
         "prompt": prompt if bool(model_config.get("accepts_text_prompt", False)) else None,
         "model_native_task": model_config.get("model_native_task"),
         "generation": applied_generation,
+        "input_unit": protocol.get("input_unit", "recognition_word_crop"),
+        "provider_options": dict(model_config.get("options", {})),
+        "image_options": dict(model_config.get("image_options", {})),
         "normalization": normalization,
     }
     fingerprint = _json_fingerprint(fingerprint_payload)
@@ -863,7 +880,11 @@ def run_model_split(
     history = _load_record_history(paths.record_jsonl, fingerprint)
     references = [str(record["ground_truth"]) for record in ordered]
     predictions = [str(record["prediction"]) for record in ordered]
-    metrics = aggregate_strict_metrics(references, predictions)
+    if protocol.get("input_unit") == "full_page":
+        from manchu_ocr.api_eval.page_ocr import aggregate_page_metrics
+        metrics = aggregate_page_metrics(references, predictions)
+    else:
+        metrics = aggregate_strict_metrics(references, predictions)
     latencies = [float(record["latency_seconds"]) for record in ordered]
     cumulative_attempts: dict[str, int] = {}
     for record in history:
@@ -895,7 +916,7 @@ def run_model_split(
         elapsed_seconds=float(metadata["active_wall_seconds"]),
     )
     result = build_experiment_result(
-        task="recognition",
+        task="page_ocr" if protocol.get("input_unit") == "full_page" else "recognition",
         experiment_name=str(experiment_config["experiment"]["name"]),
         model_name=model_key,
         model_architecture=display_name,
@@ -921,7 +942,7 @@ def run_model_split(
             "protocol": {
                 "zero_shot": True,
                 "training_performed": False,
-                "input_unit": "recognition_word_crop",
+                "input_unit": protocol.get("input_unit", "recognition_word_crop"),
                 "prompt": prompt if bool(model_config.get("accepts_text_prompt", False)) else None,
                 "prompt_sha256": (
                     text_sha256(prompt)
@@ -1011,6 +1032,8 @@ def write_summary(
                 "CER": metrics.get("CER"),
                 "WA": metrics.get("WA"),
                 "CA": metrics.get("CA"),
+                "page_transcription_cer": metrics.get("page_transcription_cer"),
+                "page_transcription_score": metrics.get("page_transcription_score"),
                 "checkpoint_path": result.get("checkpoint_path"),
                 "manifest_path": result.get("manifest_path"),
                 "runtime_seconds": result.get("runtime_seconds"),
@@ -1030,6 +1053,8 @@ def write_summary(
         "WA",
         "CA",
         "provider",
+        "page_transcription_cer",
+        "page_transcription_score",
         "model_id",
         "status",
         "samples",

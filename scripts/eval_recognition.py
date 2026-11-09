@@ -7,6 +7,8 @@ from typing import Dict, Optional
 os.environ.setdefault("PYTORCH_CUDA_ALLOC_CONF", "expandable_segments:True")
 
 import torch
+from manchu_ocr.utils.paper_protocol import validate_paper_checkpoint, bind_transition_prior
+from manchu_ocr.data.orthography import sha256_file
 from torch.utils.data import DataLoader
 
 from manchu_ocr.data.collate.rec_collate import RecCollate
@@ -452,6 +454,8 @@ def main() -> None:
         raise FileNotFoundError(f"Checkpoint not found: {checkpoint_path}")
 
     checkpoint = torch.load(checkpoint_path, map_location=device)
+    bind_transition_prior(cfg, paths_cfg["recognition_data"])
+    validate_paper_checkpoint(cfg, checkpoint)
 
     if "model" not in checkpoint:
         raise KeyError(f"Checkpoint does not contain key 'model': {checkpoint_path}")
@@ -590,6 +594,11 @@ def main() -> None:
         timing=timing,
         runtime_details=runtime_details,
         extra_fields={
+            "checkpoint_sha256": sha256_file(checkpoint_path),
+            "config_sha256": sha256_file(args.config),
+            "manifest_sha256": sha256_file(manifest_path),
+            "transition_matrix_sha256": cfg["experiment"].get("transition_matrix_sha256"),
+            "rho": cfg["experiment"].get("rho"),
             "experiment": exp_name,
             "legacy_split": args.split,
             "checkpoint": str(checkpoint_path).replace("\\", "/"),

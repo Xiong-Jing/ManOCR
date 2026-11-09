@@ -1,10 +1,14 @@
-﻿import argparse
+from manchu_ocr.utils.paper_protocol import validate_paper_checkpoint, is_better_checkpoint
+from manchu_ocr.data.orthography import sha256_file
+import argparse
 import math
 import shutil
 from pathlib import Path
 from typing import Dict, Optional
 
 import torch
+from time import perf_counter
+from manchu_ocr.utils.experiment_result import collect_torch_runtime
 from torch.amp import GradScaler, autocast
 from torch.utils.data import DataLoader
 
@@ -51,6 +55,8 @@ def build_dataloader(
         shrink_ratio_x=float(label_generator_cfg.get("shrink_ratio_x", 0.65)),
         shrink_ratio_y=float(label_generator_cfg.get("shrink_ratio_y", 0.90)),
         as_auxiliary=bool(label_generator_cfg.get("as_auxiliary", True)),
+        as_mode=label_generator_cfg.get("as_mode", "legacy_scale"),
+        as_gamma=float(label_generator_cfg.get("as_gamma", 1 / 3)),
     )
 
     dataset = DetectionDataset(
@@ -229,6 +235,7 @@ def log_model_summary(logger, model: torch.nn.Module, cfg: Dict) -> None:
 
 
 def main() -> None:
+    invocation_started = perf_counter()
     parser = argparse.ArgumentParser()
     parser.add_argument(
         "--config",
@@ -436,6 +443,8 @@ def main() -> None:
 
         checkpoint = torch.load(resume_path, map_location=device)
 
+        validate_paper_checkpoint(cfg, checkpoint, for_resume=True)
+
         if "model" not in checkpoint:
             raise KeyError(f"Checkpoint does not contain key 'model': {resume_path}")
 
@@ -563,6 +572,9 @@ def main() -> None:
     val_interval = int(cfg["train"].get("val_interval", 1))
 
     for epoch in range(start_epoch, epochs + 1):
+        if device.type == "cuda":
+            torch.cuda.synchronize(device)
+        epoch_started = perf_counter()
         model.train()
 
         total_loss = 0.0
@@ -633,6 +645,10 @@ def main() -> None:
                     f"loss={losses['loss'].item():.4f}"
                 )
 
+        if device.type == "cuda":
+            torch.cuda.synchronize(device)
+        train_seconds = perf_counter() - epoch_started
+        evaluation_started = perf_counter()
         train_loss = total_loss / max(total_batches, 1)
         train_prob_loss = total_prob_loss / max(total_batches, 1)
         train_binary_loss = total_binary_loss / max(total_batches, 1)
@@ -668,7 +684,12 @@ def main() -> None:
                 "num_pred": 0,
             }
 
+        if device.type == "cuda":
+            torch.cuda.synchronize(device)
+        validation_seconds = perf_counter() - evaluation_started if should_validate else 0.0
         current = {
+            "train_seconds": train_seconds,
+            "validation_seconds": validation_seconds,
             "epoch": epoch,
             "lr": float(optimizer.param_groups[0]["lr"]),
             "grad_accum_steps": int(grad_accum_steps),
@@ -765,6 +786,17 @@ def main() -> None:
             logger.info("Debug run finished after one epoch.")
             break
 
+    timed = [row for row in history if "train_seconds" in row]
+    save_json({
+        "invocation_seconds_including_setup_and_checkpoint_io": perf_counter() - invocation_started,
+        "train_seconds": sum(row["train_seconds"] for row in timed),
+        "validation_seconds": sum(row["validation_seconds"] for row in timed),
+        "timed_epochs": len(timed), "history_epochs": len(history),
+        "all_history_epochs_timed": len(timed) == len(history),
+        "parameters": sum(p.numel() for p in model.parameters()),
+        "runtime": collect_torch_runtime(device),
+        "note": "Training/validation stage sums exclude standalone test and checkpoint IO; no estimates for untimed epochs",
+    }, metrics_dir / "training_runtime.json")
     logger.info("Detection training finished.")
 
 

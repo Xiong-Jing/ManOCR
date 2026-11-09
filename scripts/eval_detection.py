@@ -5,6 +5,7 @@ from typing import Dict, List
 import cv2
 import numpy as np
 import torch
+from manchu_ocr.utils.paper_protocol import validate_paper_checkpoint, bind_transition_prior
 from torch.utils.data import DataLoader
 
 from manchu_ocr.data.collate.det_collate import DetCollate
@@ -105,6 +106,8 @@ def build_dataloader(
         shrink_ratio_x=float(label_generator_cfg.get("shrink_ratio_x", 0.65)),
         shrink_ratio_y=float(label_generator_cfg.get("shrink_ratio_y", 0.90)),
         as_auxiliary=bool(label_generator_cfg.get("as_auxiliary", True)),
+        as_mode=label_generator_cfg.get("as_mode", "legacy_scale"),
+        as_gamma=float(label_generator_cfg.get("as_gamma", 1 / 3)),
     )
 
     dataset = DetectionDataset(
@@ -312,6 +315,7 @@ def main() -> None:
         raise FileNotFoundError(f"Checkpoint not found: {checkpoint_path}")
 
     checkpoint = torch.load(checkpoint_path, map_location=device)
+    validate_paper_checkpoint(cfg, checkpoint)
 
     model.load_state_dict(checkpoint["model"], strict=True)
 
