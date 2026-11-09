@@ -95,6 +95,7 @@ class DBFPN(nn.Module):
         vsaa_horizontal_kernel: int = 5,
         vsaa_dropout: float = 0.0,
         vsaa_residual_scale: float = 0.1,
+        vsaa_implementation: str = "legacy",
     ):
         super().__init__()
 
@@ -162,6 +163,7 @@ class DBFPN(nn.Module):
             vsaa_horizontal_kernel=vsaa_horizontal_kernel,
             vsaa_dropout=vsaa_dropout,
             vsaa_residual_scale=vsaa_residual_scale,
+            vsaa_implementation=vsaa_implementation,
         )
 
     def forward(self, features: Dict[str, torch.Tensor]) -> torch.Tensor:
