@@ -1,0 +1,14 @@
+name: manwen_laodang_taizong_detection_3853
+sample_unit: source_page
+expected_raw_images: 3853
+expected_raw_annotations: 3853
+expected_valid_pages: 3853
+split:
+  seed: 42
+  train_ratio: 0.8
+  val_ratio: 0.1
+  test_ratio: 0.1
+  counts:
+    train: 3083
+    val: 385
+    test: 385
