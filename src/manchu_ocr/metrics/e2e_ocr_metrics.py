@@ -318,8 +318,20 @@ def page_transcription_metrics(
     counts = aggregate_edit_counts([(prediction, reference)])
     denominator = max(len(reference), len(prediction), 1)
     similarity = max(0.0, 1.0 - counts["edit_errors"] / denominator)
+    word_s, word_d, word_i = levenshtein_error_counts(prediction.split(), reference.split())
+    reference_words = len(reference.split())
+    if reference_words == 0:
+        raise ValueError("Page transcription score requires at least one reference word")
+    word_similarity = max(0.0, 1.0 - (word_s + word_d + word_i) / reference_words)
     return {
         **counts,
         "edit_similarity": float(similarity),
+        "word_substitutions": word_s,
+        "word_deletions": word_d,
+        "word_insertions": word_i,
+        "reference_words": reference_words,
+        "word_edit_similarity": word_similarity,
+        "page_transcription_score": 100.0 * word_similarity,
+        "page_transcription_score_definition": "100 * max(0, 1 - (Sw+Dw+Iw)/Nw), paper Eq. (20)",
         "exact": bool(prediction == reference),
     }
