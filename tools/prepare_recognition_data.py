@@ -1,4 +1,6 @@
-﻿import argparse
+from manchu_ocr.data.orthography import build_transition_matrix, write_transition_artifact
+from manchu_ocr.data.page_splits import load_page_mapping, fixed_page_assignments, split_by_page
+import argparse
 import random
 import re
 from collections import Counter
@@ -256,31 +258,6 @@ def build_charset(labels: List[str]) -> List[str]:
     return chars
 
 
-def build_transition_matrix(labels: List[str], charset: List[str], smoothing: float = 1.0) -> np.ndarray:
-    """
-    Build character transition probability matrix.
-
-    T[i, j] means probability of char_j appearing after char_i.
-    """
-    char_to_idx = {c: i for i, c in enumerate(charset)}
-    k = len(charset)
-
-    counts = np.full((k, k), smoothing, dtype=np.float64)
-
-    for label in labels:
-        if len(label) < 2:
-            continue
-
-        for a, b in zip(label[:-1], label[1:]):
-            if a in char_to_idx and b in char_to_idx:
-                counts[char_to_idx[a], char_to_idx[b]] += 1.0
-
-    row_sums = counts.sum(axis=1, keepdims=True)
-    matrix = counts / np.maximum(row_sums, 1e-12)
-
-    return matrix.astype(np.float32)
-
-
 def save_manifest(samples: List[Tuple[str, str]], path: Path) -> None:
     lines = [f"{normalize_path_str(img)}\t{label}" for img, label in samples]
     write_txt(lines, path)
@@ -294,6 +271,8 @@ def main() -> None:
         default="configs/paths/remote_server.yaml",
         help="Path to paths yaml",
     )
+    parser.add_argument("--page-map", help="CSV image_path,source_page_id; required for formal splits")
+    parser.add_argument("--allow-word-random-split", action="store_true", help="Legacy exploratory split, NOT page-disjoint")
     parser.add_argument("--seed", type=int, default=42)
     parser.add_argument("--train-ratio", type=float, default=0.8)
     parser.add_argument("--val-ratio", type=float, default=0.1)
@@ -403,12 +382,24 @@ def main() -> None:
     logger.info(f"Charset size without CTC blank: {len(charset)}")
     logger.info(f"Charset: {''.join(charset)}")
 
-    train_samples, val_samples, test_samples = split_samples(
-        samples=samples,
-        train_ratio=args.train_ratio,
-        val_ratio=args.val_ratio,
-        seed=args.seed,
-    )
+    page_map = args.page_map or rec_cfg.get("source_page_map")
+    if page_map:
+        mapping = load_page_mapping(page_map)
+        det = cfg.get("detection_data", {})
+        fixed = fixed_page_assignments(
+            {split: det[f"{split}_list"] for split in ("train", "val", "test")
+             if det.get(f"{split}_list")}, mapping)
+        train_samples, val_samples, test_samples = split_by_page(
+            samples, mapping, args.train_ratio, args.val_ratio, args.seed, fixed)
+    elif args.allow_word_random_split:
+        logger.warning("Legacy word-random split: not valid for the paper page-disjoint protocol")
+        train_samples, val_samples, test_samples = split_samples(
+            samples, args.train_ratio, args.val_ratio, args.seed)
+    else:
+        raise ValueError("Formal preparation requires --page-map with explicit source_page_id; "
+                         "do not infer source pages from crop filenames")
+    if not all((train_samples, val_samples, test_samples)):
+        raise ValueError("Page split produced an empty partition")
 
     logger.info(f"Train samples: {len(train_samples)}")
     logger.info(f"Val samples: {len(val_samples)}")
@@ -438,7 +429,9 @@ def main() -> None:
     )
 
     transition_matrix_path.parent.mkdir(parents=True, exist_ok=True)
-    np.save(transition_matrix_path, transition_matrix)
+    write_transition_artifact(transition_matrix_path, transition_matrix,
+                              manifest=train_list, charset_path=charset_path,
+                              rho=0.05, smoothing=args.smoothing, epsilon_t=1e-6)
 
     label_lengths = [len(label) for label in labels]
     char_counter = Counter("".join(labels))

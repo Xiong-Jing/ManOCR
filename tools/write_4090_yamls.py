@@ -30,9 +30,9 @@ def recognition_config(
         "blank_idx": 0,
         "zero_infinity": True,
         "use_orthographic_loss": use_lortho,
-        "use_alignment_loss": True,
-        "lambda_align": 0.015,
-        "lambda_align_final": 0.005,
+        "use_alignment_loss": False,
+        "lambda_align": 0.0,
+        "lambda_align_final": 0.0,
         "lambda_align_decay_start_epoch": 80,
         "lambda_align_decay_end_epoch": 160,
         "align_label_smoothing": 0.03,
@@ -43,11 +43,11 @@ def recognition_config(
     if use_lortho:
         loss.update(
             {
-                "lambda_ortho": 0.1 if use_dab else 0.00002,
+                "lambda_ortho": 0.1,
                 "normalize_char_probs": True,
                 "confidence_weighting": True,
-                "confidence_power": 2.0,
-                "min_confidence": 0.02,
+                "confidence_power": 1.0,
+                "min_confidence": 0.0,
                 "transition_matrix": f"{REMOTE_REC_ROOT}/processed/transition_matrix.npy",
             }
         )
@@ -97,11 +97,12 @@ def recognition_config(
             }
         )
 
-    train_batch_size = 96 if use_dab else 128
+    train_batch_size = 128
     grad_accum_steps = 1
 
     return {
         "experiment": {
+            "protocol_version": "paper_v2_20261109",
             "name": exp_name,
             "task": "recognition",
             "paths_config": PATHS_CONFIG,
@@ -129,7 +130,7 @@ def recognition_config(
         "model": model,
         "loss": loss,
         "decode": {
-            "use_lexicon": True,
+            "use_lexicon": False,
             "lexicon_source": "train",
             "max_edit_distance": 2,
             "length_delta": 2,
@@ -209,6 +210,7 @@ def detection_config(
     use_vsaa = direction_module == "vsaa"
     return {
         "experiment": {
+            "protocol_version": "paper_v2_20261109",
             "name": exp_name,
             "task": "detection",
             "paths_config": PATHS_CONFIG,
@@ -223,44 +225,21 @@ def detection_config(
             "batch_size": 16,
             "num_workers": 8,
             "shrink_ratio": 0.4,
-            "augmentation": {
-                "enabled": False,
-                "nonuniform_scale_prob": 0.8,
-                "horizontal_scale_min": 0.84,
-                "horizontal_scale_max": 0.96,
-                "vertical_scale_min": 1.05,
-                "vertical_scale_max": 1.22,
-                "elastic_prob": 0.55,
-                "elastic_alpha_x": 14.0,
-                "elastic_alpha_y": 8.0,
-                "elastic_sigma": 8.0,
-                "blur_prob": 0.65,
-                "gaussian_blur_weight": 0.4,
-                "motion_blur_weight": 0.35,
-                "defocus_blur_weight": 0.25,
-                "gaussian_kernel_sizes": [3, 5, 7],
-                "motion_kernel_sizes": [5, 9, 13],
-                "defocus_kernel_sizes": [5, 9, 13],
-                "gaussian_sigma_min": 0.4,
-                "gaussian_sigma_max": 1.4,
-                "noise_contrast_prob": 0.8,
-                "contrast_min": 0.45,
-                "contrast_max": 0.75,
-                "multiplicative_noise_std": 0.08,
-                "gaussian_noise_std": 0.035,
-            },
+            "augmentation": {"enabled": True, "profile": "paper_table3"},
             "label_generator": {
                 "use_asymmetric_shrink": use_asym_shrink,
                 "shrink_ratio_x": 0.65,
                 "shrink_ratio_y": 0.90,
-                "as_auxiliary": True,
+                "as_auxiliary": False,
+                "as_mode": "edge_offset",
+                "as_gamma": 1 / 3,
             },
         },
         "model": {
             "name": "DBNetPP",
             "backbone": {
                 "name": "ResNetBackbone",
-                "arch": "resnet18",
+                "arch": "resnet34",
                 "pretrained": False,
             },
             "neck": {
@@ -274,6 +253,7 @@ def detection_config(
                 "strip_reduction": 4,
                 "coordinate_reduction": 32,
                 "vsaa_reduction": 4,
+                "vsaa_implementation": "paper",
                 "vsaa_vertical_kernel": 15,
                 "vsaa_horizontal_kernel": 5,
                 "vsaa_dropout": 0.0,
@@ -288,7 +268,7 @@ def detection_config(
         "loss": {
             "alpha": 1.0,
             "beta": 10.0,
-            "gamma_as": 0.02 if use_asym_shrink else 0.0,
+            "gamma_as": 0.0,
             "negative_ratio": 3.0,
             "eps": 0.000001,
         },
