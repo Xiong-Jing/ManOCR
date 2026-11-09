@@ -28,8 +28,7 @@ protocol:
       (no boxes)
     character_accuracy: (N - S - D) / N
     cer: corpus character edit distance, excluding formatting whitespace
-    page_transcription_score: mean(1 - page edit distance / max(reference length,
-      prediction length, 1))
+    page_transcription_score: mean(100 * max(0, 1 - word edit distance / reference words))
   retry:
     request_timeout_seconds: 180
     max_attempts: 5
