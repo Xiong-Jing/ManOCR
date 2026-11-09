@@ -33,6 +33,7 @@ class OrthographicTransitionLoss(nn.Module):
         confidence_weighting: bool = True,
         confidence_power: float = 1.0,
         min_confidence: float = 0.0,
+        epsilon_t: float = 1e-6,
     ):
         super().__init__()
 
@@ -49,6 +50,10 @@ class OrthographicTransitionLoss(nn.Module):
             )
 
         matrix = matrix.astype("float32")
+        if not np.isfinite(matrix).all() or (matrix < 0).any() or (matrix.sum(axis=1) <= 0).any():
+            raise ValueError("Transition matrix must be finite, nonnegative with positive row sums")
+        if not 0 < epsilon_t < 1 or eps <= 0:
+            raise ValueError("Invalid numerical floors")
         matrix = np.clip(matrix, eps, None)
 
         # Normalize again for safety.
@@ -58,6 +63,7 @@ class OrthographicTransitionLoss(nn.Module):
 
         self.blank_idx = blank_idx
         self.eps = eps
+        self.epsilon_t = epsilon_t
         self.normalize_char_probs = normalize_char_probs
         self.confidence_weighting = confidence_weighting
         self.confidence_power = float(confidence_power)
@@ -80,13 +86,10 @@ class OrthographicTransitionLoss(nn.Module):
         if not torch.isfinite(logits).all():
             raise FloatingPointError("Non-finite logits detected before OrthographicTransitionLoss.")
 
-        # Avoid extreme logits causing unstable softmax.
-        logits = torch.clamp(logits, min=-20.0, max=20.0)
-
         batch_size, time_steps, num_classes = logits.shape
 
         if time_steps < 2:
-            return logits.new_tensor(0.0)
+            return logits.sum() * 0.0
 
         num_chars = num_classes - 1
         matrix_size = self.transition_matrix.shape[0]
@@ -107,7 +110,7 @@ class OrthographicTransitionLoss(nn.Module):
         transition_matrix = self.transition_matrix.to(
             device=logits.device,
             dtype=logits.dtype,
-        ).clamp_min(self.eps)
+        )
 
         transition_matrix = transition_matrix / transition_matrix.sum(
             dim=1,
@@ -140,12 +143,9 @@ class OrthographicTransitionLoss(nn.Module):
             nan=self.eps,
             posinf=1.0,
             neginf=self.eps,
-        ).clamp_min(self.eps)
+        ).clamp_min(self.epsilon_t)
 
         raw_loss = -torch.log(transition_scores)
-
-        # Prevent one unstable transition from dominating the whole loss.
-        raw_loss = torch.clamp(raw_loss, max=20.0)
 
         if self.confidence_weighting:
             non_blank_conf_t = 1.0 - probs[:, :-1, self.blank_idx]
@@ -163,7 +163,10 @@ class OrthographicTransitionLoss(nn.Module):
             if self.confidence_power != 1.0:
                 weights = weights.clamp_min(0.0).pow(self.confidence_power)
 
-            loss = (raw_loss * weights).sum() / weights.sum().clamp_min(1.0)
+            # Eq. (15) is normalized within each sequence, then batch-averaged.
+            # A clamp at 1 silently suppresses OTP for blank-dominated examples.
+            loss = ((raw_loss * weights).sum(dim=1) /
+                    (weights.sum(dim=1) + self.eps)).mean()
         else:
             loss = raw_loss.mean()
 
