@@ -281,7 +281,10 @@ def main() -> None:
     if device.type == "cuda":
         torch.cuda.reset_peak_memory_stats(device)
 
-    det_cfg = paths_cfg["detection_data"]
+    from manchu_ocr.data.detection_protocol import resolve_detection_data, validate_detection_manifests
+    det_cfg = resolve_detection_data(paths_cfg)
+    if det_cfg.get("expected_valid_pages") is not None:
+        validate_detection_manifests(det_cfg)
 
     if args.split == "train":
         manifest_path = det_cfg["train_list"]

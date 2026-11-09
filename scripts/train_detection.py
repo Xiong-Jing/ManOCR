@@ -284,7 +284,10 @@ def main() -> None:
 
     shutil.copyfile(args.config, log_dir / "config.yaml")
 
-    det_cfg = paths_cfg["detection_data"]
+    from manchu_ocr.data.detection_protocol import resolve_detection_data, validate_detection_manifests
+    det_cfg = resolve_detection_data(paths_cfg)
+    if det_cfg.get("expected_valid_pages") is not None:
+        validate_detection_manifests(det_cfg)
 
     train_list = det_cfg["train_list"]
     val_list = det_cfg["val_list"]

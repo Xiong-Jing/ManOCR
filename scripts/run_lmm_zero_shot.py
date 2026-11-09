@@ -135,7 +135,9 @@ def _json_fingerprint(value: Mapping[str, Any]) -> str:
     return text_sha256(canonical)
 
 
-def _selected_manifest_sha256(samples: Sequence[RecognitionSample]) -> str:
+def _selected_manifest_sha256(samples: Sequence[RecognitionSample], *, page_mode: bool = False) -> str:
+    if page_mode:
+        return text_sha256("".join(item.sample_id for item in samples))
     material = "".join(f"{item.image_path}\t{item.label}\n" for item in samples)
     return text_sha256(material)
 
@@ -149,8 +151,14 @@ def _write_selected_manifest(
     seed: int,
     split: str,
     overwrite: bool,
+    page_mode: bool = False,
 ) -> None:
-    expected = "".join(f"{item.image_path}\t{item.label}\n" for item in samples)
+    if page_mode:
+        from manchu_ocr.data.page_splits import read_manifest
+        rows = read_manifest(source_manifest)
+        expected = "".join(f"{rows[item.source_index][0]}\t{rows[item.source_index][1]}\n" for item in samples)
+    else:
+        expected = "".join(f"{item.image_path}\t{item.label}\n" for item in samples)
     if path.exists() and path.read_text(encoding="utf-8") != expected and not overwrite:
         raise RuntimeError(
             f"Existing selected manifest does not match this run: {path}. "
@@ -167,7 +175,8 @@ def _write_selected_manifest(
         "selection_method": "deterministic_length_stratified_sha256",
         "selected_samples": len(samples),
         "selected_length_bins": length_bin_counts(samples),
-        "selected_manifest_sha256": _selected_manifest_sha256(samples),
+        "selected_manifest_sha256": _selected_manifest_sha256(samples, page_mode=page_mode),
+        "input_unit": "full_page" if page_mode else "word_crop",
     }
     _atomic_json(path.with_suffix(path.suffix + ".metadata.json"), metadata)
 
@@ -243,8 +252,9 @@ def prepare_splits(
                 seed=seed,
                 split=public_name,
                 overwrite=overwrite,
+                page_mode=page_mode,
             )
-            selected_hash = _selected_manifest_sha256(selected)
+            selected_hash = _selected_manifest_sha256(selected, page_mode=page_mode)
 
         if not skip_image_check:
             missing = [item.image_path for item in selected if not Path(item.image_path).is_file()]
