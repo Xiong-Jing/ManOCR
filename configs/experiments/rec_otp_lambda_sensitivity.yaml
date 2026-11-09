@@ -18,13 +18,13 @@ controlled_variables:
   scheduler: cosine
   warmup_epochs: 10
   input_size: [256, 128]
-  batch_size: 96
+  batch_size: 128
   seed: 42
   changed_variable_only: orthographic_transition_penalty_weight
 
 lambda_protocol:
   values: [0.0, 0.025, 0.05, 0.1, 0.2, 0.5]
-  loss_equation: L_total = L_CTC + lambda_align * L_align + lambda * L_OTP
+  loss_equation: L_total = L_CTC + lambda * L_OTP
   schedule: constant_from_epoch_1
   lambda_zero_meaning: Keep DAB and disable OTP completely.
   positive_lambda_initial_equals_final: true

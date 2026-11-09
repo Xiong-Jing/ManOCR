@@ -1,0 +1,14 @@
+experiment:
+  name: rec_otp_rho_sensitivity
+base_config: configs/recognition/svtr_official_dab_lortho.yaml
+rhos: [0.01, 0.025, 0.05, 0.10, 0.20, 0.50, 1.00]
+protocol:
+  lambda_ortho: 0.1
+  smoothing: 1.0
+  epsilon_t: 1.0e-6
+  epochs: 200
+  seed: 42
+  checkpoint_selection: validation_WA_then_lower_CER
+  default_splits: [val]
+  # rho=1 retains the smoothed corpus prior AND OTP.
+  rule_pairs: [[a, e], [e, a], [o, e], [e, v], [w, i], [w, o], [w, u], [w, v]]

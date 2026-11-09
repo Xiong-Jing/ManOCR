@@ -1,0 +1,87 @@
+experiment:
+  name: lmm_page_zero_shot
+  task: page_ocr
+  protocol_version: lmm_page_zero_shot_v2
+  paths_config: configs/paths/remote_server.yaml
+protocol:
+  zero_shot: true
+  training_performed: false
+  input_unit: full_page
+  default_splits:
+  - test
+  selection_seed: 42
+  prompt: Transcribe this entire page of vertically written Manchu into lowercase
+    Romanized Manchu. Read top to bottom within each column and left to right across
+    columns. Separate words with spaces and columns with newlines. Return only the
+    transcription; do not translate, explain, or add Markdown.
+  generation:
+    temperature: 0.0
+    top_p: 1.0
+    seed: 42
+    vl_high_resolution_images: false
+  normalization:
+    remove_whitespace: false
+    lowercase: true
+    normalize_apostrophes: true
+  metrics:
+    word_accuracy: correct reference tokens in word edit alignment / reference tokens
+      (no boxes)
+    character_accuracy: (N - S - D) / N
+    cer: corpus character edit distance, excluding formatting whitespace
+    page_transcription_score: mean(1 - page edit distance / max(reference length,
+      prediction length, 1))
+  retry:
+    request_timeout_seconds: 180
+    max_attempts: 5
+    initial_backoff_seconds: 2
+    max_backoff_seconds: 30
+    jitter_seconds: 0.5
+    request_delay_seconds: 0
+    max_errors_before_stop: 5
+  progress_every: 25
+models:
+  qwen2_5_vl_7b:
+    display_name: Qwen2.5-VL-7B-Instruct
+    provider: openai_compatible
+    model_id: qwen2.5-vl-7b-instruct
+    base_url: ${QWEN2_5_VL_BASE_URL:-https://dashscope.aliyuncs.com/compatible-mode/v1}
+    api_key_env: DASHSCOPE_API_KEY
+    api_key_required: true
+    accepts_text_prompt: true
+    model_native_task: null
+    workers: 4
+    image_options:
+      min_pixels: 3136
+      max_pixels: 1003520
+  got_ocr2_0:
+    display_name: GOT-OCR2.0
+    provider: gradio_space
+    source: ${GOT_OCR2_GRADIO_SOURCE:-stepfun-ai/GOT_official_online_demo}
+    token_env: HF_TOKEN
+    api_name: /run_GOT
+    mode: plain texts OCR
+    accepts_text_prompt: false
+    model_native_task: plain texts OCR
+    workers: 1
+  paddleocr_vl:
+    display_name: PaddleOCR-VL-1.5
+    provider: paddleocr_official
+    model_id: PaddleOCR-VL-1.5
+    token_env: PADDLEOCR_ACCESS_TOKEN
+    base_url_env: PADDLEOCR_BASE_URL
+    request_timeout_seconds: 300
+    poll_timeout_seconds: 600
+    accepts_text_prompt: false
+    model_native_task: ocr
+    workers: 2
+    options:
+      use_doc_orientation_classify: false
+      use_doc_unwarping: false
+      use_layout_detection: true
+      prompt_label: ocr
+      format_block_content: false
+      temperature: 0.0
+      top_p: 1.0
+      prettify_markdown: false
+      return_markdown_images: false
+      visualize: false

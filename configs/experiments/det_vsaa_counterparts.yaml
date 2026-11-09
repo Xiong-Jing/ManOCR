@@ -4,7 +4,7 @@ experiment:
 
 controlled_variables:
   reference_config: configs/detection/dbnetpp_official_baseline.yaml
-  backbone: ResNetBackbone/resnet18
+  backbone: ResNetBackbone/resnet34
   neck_base: DBFPN_with_ASF
   head: DBHead
   train_split: detection_data.train_list
