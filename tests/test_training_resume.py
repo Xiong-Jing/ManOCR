@@ -14,6 +14,7 @@ from unittest.mock import Mock
 import pytest
 
 from manchu_ocr.utils.config import load_yaml
+from manchu_ocr.utils.paper_protocol import validate_paper_checkpoint
 
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
@@ -128,6 +129,9 @@ def _resume_namespace(torch, tmp_path, *, resume=None, auto_resume=False, use_em
         "best_val_fmeasure": -1.0,
         "best_word_accuracy": -1.0,
         "best_metric_value": -1.0,
+        "best_cer": float("inf"),
+        "cfg": {},
+        "validate_paper_checkpoint": validate_paper_checkpoint,
         "logger": Mock(),
     }
 
