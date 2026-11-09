@@ -3,6 +3,8 @@ from pathlib import Path
 
 import numpy as np
 
+from manchu_ocr.data.orthography import build_transition_matrix, write_transition_artifact
+
 from manchu_ocr.utils.config import load_yaml
 
 
@@ -22,19 +24,6 @@ def read_labels(path: Path) -> list[str]:
     return labels
 
 
-def build_transition_matrix(labels: list[str], charset: list[str], smoothing: float = 1.0) -> np.ndarray:
-    char_to_idx = {char: idx for idx, char in enumerate(charset)}
-    counts = np.full((len(charset), len(charset)), smoothing, dtype=np.float64)
-
-    for label in labels:
-        for a, b in zip(label[:-1], label[1:]):
-            if a in char_to_idx and b in char_to_idx:
-                counts[char_to_idx[a], char_to_idx[b]] += 1.0
-
-    counts = counts / np.maximum(counts.sum(axis=1, keepdims=True), 1e-12)
-    return counts.astype(np.float32)
-
-
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--config", type=str, default=None)
@@ -42,6 +31,8 @@ def main() -> None:
     parser.add_argument("--charset", type=str, default=None)
     parser.add_argument("--output", type=str, default=None)
     parser.add_argument("--smoothing", type=float, default=1.0)
+    parser.add_argument("--rho", type=float, default=0.05)
+    parser.add_argument("--epsilon-t", type=float, default=1e-6)
     args = parser.parse_args()
 
     manifest = args.manifest
@@ -60,11 +51,15 @@ def main() -> None:
 
     charset = read_charset(Path(charset_path))
     labels = read_labels(Path(manifest))
-    matrix = build_transition_matrix(labels, charset, smoothing=args.smoothing)
+    if not labels:
+        raise ValueError("Training manifest is empty")
+    matrix = build_transition_matrix(labels, charset, smoothing=args.smoothing,
+                                     rho=args.rho, epsilon_t=args.epsilon_t)
 
     output_path = Path(output)
     output_path.parent.mkdir(parents=True, exist_ok=True)
-    np.save(output_path, matrix)
+    write_transition_artifact(output_path, matrix, manifest=manifest, charset_path=charset_path,
+                              rho=args.rho, smoothing=args.smoothing, epsilon_t=args.epsilon_t)
     print(f"[OK] saved transition matrix {matrix.shape} to {output_path}")
 
 
