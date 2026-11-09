@@ -1,9 +1,8 @@
 import argparse
 from pathlib import Path
 
-import numpy as np
-
 from manchu_ocr.data.orthography import build_transition_matrix, write_transition_artifact
+from manchu_ocr.data.page_splits import read_manifest
 
 from manchu_ocr.utils.config import load_yaml
 
@@ -13,15 +12,7 @@ def read_charset(path: Path) -> list[str]:
 
 
 def read_labels(path: Path) -> list[str]:
-    labels = []
-    with path.open("r", encoding="utf-8") as f:
-        for line in f:
-            if not line.strip():
-                continue
-            parts = line.rstrip("\n").split("\t")
-            if len(parts) >= 2:
-                labels.append(parts[1])
-    return labels
+    return [label for _, label in read_manifest(path)]
 
 
 def main() -> None:

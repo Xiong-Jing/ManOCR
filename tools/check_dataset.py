@@ -33,6 +33,9 @@ def main() -> None:
     det = cfg.get("detection_data", {})
     if det:
         print("[Detection]")
+        from manchu_ocr.data.detection_protocol import resolve_detection_data, validate_detection_manifests
+        det = resolve_detection_data(cfg)
+        print(validate_detection_manifests(det))
         for key in ["train_list", "val_list", "test_list"]:
             count_manifest(det[key])
 

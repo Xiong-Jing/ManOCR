@@ -38,6 +38,9 @@ def main() -> None:
     parser.add_argument("--full-ocr-summary", type=str, default="outputs/metrics/full_ocr/full_ocr_formal.json")
     parser.add_argument("--baseline-summary", type=str, default="outputs/metrics/baselines/external_baselines.json")
     parser.add_argument("--output", type=str, default="outputs/metrics/paper_tables.md")
+    parser.add_argument("--otp-rho-summary", default="outputs/metrics/recognition/recognition_otp_rho_sensitivity.json")
+    parser.add_argument("--crop-oracle-result", default="outputs/metrics/crop_oracle/eval_test.json")
+    parser.add_argument("--error-analysis", default="outputs/metrics/e2e_error_analysis.json")
     args = parser.parse_args()
 
     lines = ["# Paper Tables", ""]
@@ -249,6 +252,29 @@ def main() -> None:
             )
     else:
         lines.append(f"External baseline summary not found: `{baseline_path}`")
+
+    rho_path = Path(args.otp_rho_summary)
+    if rho_path.is_file():
+        lines.extend(["", "## OTP Rule-Weight Sensitivity", "",
+                      "| Rho | Split | WA (%) | CA (%) | CER (%) |", "|---:|---|---:|---:|---:|"])
+        for row in load_json(rho_path):
+            lines.append(f"| {row['rho']:g} | {row['split']} | {row['WA']*100:.2f} | {row['CA']*100:.2f} | {row['CER']*100:.2f} |")
+    oracle_path = Path(args.crop_oracle_result)
+    if oracle_path.is_file():
+        result = load_json(oracle_path)
+        lines.extend(["", "## Paired Crop Evaluation", "",
+                      "| Crop source | WA (%) | CER (%) |", "|---|---:|---:|"])
+        for label, key in [("Detector-predicted", "detector_predicted_crops"), ("Ground truth", "ground_truth_crops")]:
+            m = result[key]
+            lines.append(f"| {label} | {m['word_accuracy']*100:.2f} | {m['cer']*100:.2f} |")
+    errors_path = Path(args.error_analysis)
+    if errors_path.is_file():
+        result = load_json(errors_path)
+        lines.extend(["", "## Reviewed Residual Errors", "",
+                      f"Denominator: {result['num_reviewed_instances']} reviewed error instances.", "",
+                      "| Category | Count | Share (%) |", "|---|---:|---:|"])
+        for row in result['categories']:
+            lines.append(f"| {row['category']} | {row['count']} | {row['share_percent']:.2f} |")
 
     output_path = Path(args.output)
     output_path.parent.mkdir(parents=True, exist_ok=True)

@@ -272,6 +272,12 @@ def read_manifest_count(path: Path) -> int:
 
 
 def check_processed_data(audit: Audit, paths_cfg: dict) -> None:
+    from manchu_ocr.data.detection_protocol import resolve_detection_data, validate_detection_manifests
+    try:
+        counts = validate_detection_manifests(resolve_detection_data(paths_cfg))
+        audit.ok(f"detection dataset partition matches profile: {counts}")
+    except (OSError, ValueError) as exc:
+        audit.fail(f"detection dataset partition mismatch: {exc}")
     det = paths_cfg["detection_data"]
     rec = paths_cfg["recognition_data"]
 
@@ -339,8 +345,9 @@ def check_config_values(audit: Audit) -> None:
             f"{cfg_path} has detection train augmentation config",
         )
         audit.require(
-            not bool(cfg["data"].get("augmentation", {}).get("enabled", True)),
-            f"{cfg_path} detection train augmentation disabled",
+            bool(cfg["data"].get("augmentation", {}).get("enabled", False))
+            and cfg["data"]["augmentation"].get("profile") == "paper_table3",
+            f"{cfg_path} uses the shared paper training augmentation",
         )
         audit.require(
             "eval_degradation" not in cfg,

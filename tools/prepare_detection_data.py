@@ -268,7 +268,10 @@ def split_items(
     train_ratio: float,
     val_ratio: float,
     test_ratio: Optional[float] = None,
+    split_counts: Optional[Dict[str, int]] = None,
 ):
+    if train_ratio <= 0 or val_ratio <= 0 or (test_ratio is not None and test_ratio <= 0):
+        raise ValueError("Split ratios must be positive")
     ratio_sum = train_ratio + val_ratio + (test_ratio if test_ratio is not None else 0.0)
 
     if test_ratio is not None and abs(ratio_sum - 1.0) > 1e-6:
@@ -287,8 +290,22 @@ def split_items(
     random.Random(seed).shuffle(items)
 
     n = len(items)
-    n_train = int(n * train_ratio)
-    n_val = int(n * val_ratio)
+    if split_counts is not None:
+        if set(split_counts) != {"train", "val", "test"} or any(
+            not isinstance(value, int) or isinstance(value, bool) or value <= 0 for value in split_counts.values()
+        ):
+            raise ValueError("Split counts must be positive integers for train/val/test")
+        if sum(split_counts.values()) != n:
+            raise ValueError(f"Split counts sum to {sum(split_counts.values())}, but found {n} valid pages")
+        n_train, n_val = split_counts["train"], split_counts["val"]
+    else:
+        # Largest-remainder allocation: 3853 at 8:1:1 becomes 3083/385/385.
+        ratios = [train_ratio, val_ratio, 1.0 - train_ratio - val_ratio]
+        counts = [int(n * ratio) for ratio in ratios]
+        order = sorted(range(3), key=lambda i: (-(n * ratios[i] - counts[i]), i))
+        for i in order[:n - sum(counts)]:
+            counts[i] += 1
+        n_train, n_val = counts[:2]
 
     train = items[:n_train]
     val = items[n_train:n_train + n_val]
@@ -316,7 +333,7 @@ def clear_clean_annotation_dir(clean_ann_dir: Path, data_root: Path, logger) -> 
     resolved_clean = clean_ann_dir.resolve()
     resolved_root = data_root.resolve()
 
-    if not str(resolved_clean).lower().startswith(str(resolved_root).lower()):
+    if resolved_clean == resolved_root or resolved_root not in resolved_clean.parents:
         raise RuntimeError(
             f"Refusing to clear clean annotation dir outside detection root: {resolved_clean}"
         )
@@ -365,7 +382,8 @@ def main() -> None:
     logger = setup_logger("prepare_detection_data")
 
     cfg = load_yaml(args.config)
-    det_cfg = cfg["detection_data"]
+    from manchu_ocr.data.detection_protocol import resolve_detection_data, validate_detection_inventory
+    det_cfg = resolve_detection_data(cfg)
     split_cfg = det_cfg.get("split", {})
     cleaning_cfg = det_cfg.get("cleaning", {})
 
@@ -374,6 +392,9 @@ def main() -> None:
     val_ratio = float(args.val_ratio if args.val_ratio is not None else split_cfg.get("val_ratio", 0.1))
     test_ratio = args.test_ratio if args.test_ratio is not None else split_cfg.get("test_ratio", None)
     test_ratio = None if test_ratio is None else float(test_ratio)
+    split_counts = split_cfg.get("counts")
+    if split_counts and any(value is not None for value in (args.train_ratio, args.val_ratio, args.test_ratio)):
+        raise ValueError("Explicit dataset split counts are configured; change the dataset profile to change the partition")
 
     max_area_ratio = float(
         args.max_area_ratio
@@ -412,13 +433,6 @@ def main() -> None:
     logger.info(f"Image dir: {image_dir}")
     logger.info(f"Raw annotation dir: {raw_ann_dir}")
     logger.info(f"Clean annotation dir: {clean_ann_dir}")
-
-    if clear_clean_annotations:
-        clear_clean_annotation_dir(
-            clean_ann_dir=clean_ann_dir,
-            data_root=Path(det_cfg["root"]),
-            logger=logger,
-        )
 
     if not image_dir.exists():
         raise FileNotFoundError(f"Image dir not found: {image_dir}")
@@ -464,6 +478,7 @@ def main() -> None:
     )
 
     valid_items = []
+    pending_annotations = []
     missing_images = []
     failed_json = []
     empty_after_clean = []
@@ -535,14 +550,9 @@ def main() -> None:
 
         clean_path = clean_ann_dir / json_path.name
 
-        save_clean_annotation(
-            output_path=clean_path,
-            image_path=image_path,
-            image_width=image_width,
-            image_height=image_height,
-            polygons=clean_polys,
-            source_json=json_path,
-        )
+        pending_annotations.append(dict(output_path=clean_path, image_path=image_path,
+                                        image_width=image_width, image_height=image_height,
+                                        polygons=clean_polys, source_json=json_path))
 
         valid_items.append(
             (
@@ -566,6 +576,7 @@ def main() -> None:
 
     if not valid_items:
         raise RuntimeError("No valid detection samples after cleaning.")
+    validate_detection_inventory(valid_items, det_cfg)
 
     train_items, val_items, test_items = split_items(
         items=valid_items,
@@ -573,7 +584,14 @@ def main() -> None:
         train_ratio=train_ratio,
         val_ratio=val_ratio,
         test_ratio=test_ratio,
+        split_counts=split_counts,
     )
+
+    # Only replace prepared annotations after inventory and split validation.
+    if clear_clean_annotations:
+        clear_clean_annotation_dir(clean_ann_dir, Path(det_cfg["root"]), logger)
+    for annotation in pending_annotations:
+        save_clean_annotation(**annotation)
 
     save_manifest(train_items, train_list)
     save_manifest(val_items, val_list)
